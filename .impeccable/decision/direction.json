@@ -1,0 +1,128 @@
+{
+  "title": "Choose the visual world for JARVIS",
+  "question": "The roll assigned Night Concourse. Keep it, take an alternate, or re-roll. All of them stay simple, dark and futuristic.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Night Concourse",
+      "kicker": "THE ROLL",
+      "lineage": "Airport wayfinding signs (Kinneir & Calvert, Schiphol) on backlit night panels",
+      "thesis": "Every screen is a sign: one plain sentence saying where your PC stands and which way to go next.",
+      "palette": ["#0E1116", "#1A1F27", "#FFD43B", "#F4F6F8", "#3FC1E8", "#FF5A4E"],
+      "materials": ["backlit lightbox panels", "pictogram set", "route lines with arrows"],
+      "viewport": "Home is one large sign: status sentence in big type, then arrow rows (Set up voice, Run a scan, Ask JARVIS), each with a pictogram, like a concourse sign.",
+      "risk": "Reads as transit cosplay if the arrows and pictograms stop doing real wayfinding work.",
+      "raised": [
+        {"from": "challenger-feed", "raise": "When JARVIS wakes, the listening state takes over the whole window: one thing at a time, nothing else competing."},
+        {"from": "challenger-darkroom", "raise": "Neutrals are locked to one stepped panel ramp; the only other colours are the route colours that carry meaning."},
+        {"from": "challenger-annual", "raise": "Every sign panel snaps to one module grid with hairline seams, so the whole app reads as one signage system."}
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Glass Cockpit",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Airbus ECAM and modern glass-cockpit avionics",
+      "thesis": "Your PC as an aircraft's systems page: instruments, caution levels and step-by-step checklists.",
+      "palette": ["#05070A", "#F2F4F5", "#3EE07A", "#FFB02E", "#FF4D4D", "#46C8F0"],
+      "materials": ["instrument tapes and dials", "checklist procedures", "colour-coded caution levels"],
+      "viewport": "Home is a systems page: CPU, memory, disk and network as instruments, with a caution list below that turns into a checklist when you act.",
+      "risk": "Also the direction most 'futuristic dashboard' runs land on: dark screen with glowing green and amber."
+    },
+    {
+      "id": "challenger-wallet",
+      "label": "Ticket Wallet",
+      "verdict": "competitive",
+      "lineage": "Jet-age airline ticket wallets and coupons",
+      "thesis": "Every fix is a coupon: approved, used or void gets stamped on it, and nothing ever disappears.",
+      "palette": ["#14203A", "#F6F4EE", "#C8232C", "#5B3F8C"],
+      "materials": ["carbon-copy coupons", "rubber stamps", "baggage-tag stubs"],
+      "viewport": "Activity & safety shows each action as a coupon, stamped APPROVED, USED or VOID, filed in order.",
+      "case": "Fuses well for approvals and the audit trail; loses on 'simple and futuristic' because it reads as paper and print.",
+      "risk": "Feels retro and papery instead of futuristic.",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-jet-age-ticket-wallet-hero.webp"
+    },
+    {
+      "id": "challenger-feed",
+      "label": "Full-screen Feed",
+      "verdict": "declined",
+      "lineage": "Vertical video feeds",
+      "thesis": "One item fills the screen; flick to the next.",
+      "palette": ["#000000", "#FFFFFF"],
+      "materials": ["full-bleed media", "action rail"],
+      "viewport": "One finding per screen with an action rail on the right.",
+      "case": "A PC health app needs overview and comparison, which one-at-a-time hides.",
+      "kept": "The wake/listening moment owns the whole window.",
+      "risk": "Hides the overview users need.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-vertical-video-feed-surface-hero.webp"
+    },
+    {
+      "id": "challenger-darkroom",
+      "label": "Exposure Record",
+      "verdict": "declined",
+      "lineage": "Darkroom printer's exposure sheets",
+      "thesis": "Translucent sheets over an eleven-step tonal ramp; hatching shows load.",
+      "palette": ["#111111", "#777777", "#EDEDED", "#E0218A"],
+      "materials": ["tracing-paper overlays", "zone ramp", "hatching"],
+      "viewport": "Overlapping sheets for each subsystem with hatched load regions.",
+      "case": "Too specialist to be easy to understand.",
+      "kept": "One strict tonal ramp as the only neutrals.",
+      "risk": "Cryptic for everyday users.",
+      "hero": "https://impeccable.style/worlds/cards/operate-b-exposure-record-zone-sheets-hero.webp"
+    },
+    {
+      "id": "challenger-annual",
+      "label": "Design Annual Plates",
+      "verdict": "declined",
+      "lineage": "Design annual plate sections",
+      "thesis": "Near-white stock, registration marks and hairline credits.",
+      "palette": ["#F5F4F6", "#16181A", "#DCDDF3"],
+      "materials": ["uncoated stock", "registration crosshairs"],
+      "viewport": "Findings as printed plates with credits rows.",
+      "case": "Light, editorial and print-like; not futuristic.",
+      "kept": "One module grid built from hairlines.",
+      "risk": "Reads as a magazine, not a PC tool.",
+      "hero": "https://impeccable.style/worlds/cards/design-annual-s-plate-section-hero.webp"
+    },
+    {
+      "id": "challenger-map",
+      "label": "Zoo Guide Map",
+      "verdict": "declined",
+      "lineage": "Illustrated park guide maps",
+      "thesis": "Each subsystem is a coloured land lobe on a cream sea.",
+      "palette": ["#8ED462", "#F5F1E4", "#FF705D", "#2BA0FF"],
+      "materials": ["flat colour lobes", "capsule labels"],
+      "viewport": "A map of your PC with CPU, memory and disk as islands.",
+      "case": "Playful and warm; fights both 'futuristic' and the evidence-first tone.",
+      "kept": "One shape can drive layout and state together.",
+      "risk": "Too playful for diagnosing problems.",
+      "hero": "https://impeccable.style/worlds/cards/aww2-zoo-gardens-guide-map-hero.webp"
+    },
+    {
+      "id": "challenger-folio",
+      "label": "Botanical Folio",
+      "verdict": "declined",
+      "lineage": "Botanical plate folios",
+      "thesis": "One plant through its seasons at a fixed scale.",
+      "palette": ["#F3EAD8", "#2F5D3A", "#B3261E"],
+      "materials": ["engraved plates", "sepia rules"],
+      "viewport": "Your PC's history as seasonal plates.",
+      "case": "Cream and botanical; nothing about it reads futuristic or technical.",
+      "kept": "Fixed-scale comparison across time (useful later for history views).",
+      "risk": "Off-brief.",
+      "hero": "https://impeccable.style/worlds/cards/editorial-sequence-montage-botanical-folio-season-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A Windows 11 style dashboard: sidebar, cards and a blue accent, done well.",
+    "palette": ["#202020", "#2B2B2B", "#FFFFFF", "#4CC2FF"],
+    "materials": ["Fluent mica surfaces", "card grid", "line charts"],
+    "viewport": "Sidebar on the left, a grid of health cards on Home, charts on Monitor.",
+    "risk": "Looks like every system utility and gaming-laptop app."
+  },
+  "steer": true
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.local
+.impeccable/questions/
+.impeccable/review/
+apps/desktop/tests/fixtures/audio/
+.playwright-cli/
+.impeccable/decision/answer.txt
+*.tsbuildinfo

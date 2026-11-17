@@ -1,0 +1,127 @@
+{
+  "title": "Choose the visual world for JARVIS",
+  "question": "Fresh hand. The roll assigned Dot Matrix. Keep it, take an alternate, or re-roll again.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Dot Matrix",
+      "kicker": "THE ROLL",
+      "lineage": "Minimal dot-matrix device interfaces and LED glyph lights",
+      "thesis": "JARVIS as one calm black device: white dot-matrix readouts, plain sentences, and a single red light that only means 'look here'.",
+      "palette": ["#000000", "#121212", "#F2F2EE", "#8A8A86", "#FF3B30"],
+      "materials": ["dot-matrix LED type", "matte black glass", "a glyph light ring for voice"],
+      "viewport": "Home is a black face: a ring of light (JARVIS's voice state) beside one big dot-matrix status line, then three plain rows for what to do next.",
+      "risk": "Can feel sparse or cold if the plain-language sentences are too short to explain anything.",
+      "raised": [
+        {"from": "challenger-marketing", "raise": "Every status sentence is followed immediately by the evidence that proves it (source, value, time)."},
+        {"from": "challenger-gate", "raise": "A changed reading stays lit until you have seen it, instead of silently updating."},
+        {"from": "challenger-transit", "raise": "The thing you are working on burns brightest; everything else steps back to grey."}
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Vital Signs",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Hospital bedside patient monitors",
+      "thesis": "Your PC's vitals as monitor channels: each one a colour, a live trace and a big number, calm until an alarm tier is reached.",
+      "palette": ["#020405", "#38E07B", "#3FC8F2", "#F5D23B", "#FF4F64"],
+      "materials": ["live waveform traces", "channel colours", "tiered alarm bars"],
+      "viewport": "Home shows CPU, memory, disk and network as four monitor channels with traces and big numbers; alerts sit in a bar above.",
+      "risk": "Close to the dark-screen-with-glowing-lines look most 'futuristic dashboard' runs end up with."
+    },
+    {
+      "id": "challenger-sleeve",
+      "label": "Catalog Sleeve",
+      "verdict": "competitive",
+      "lineage": "Factory Records sleeves (pulse-line plot on matte black)",
+      "thesis": "A stack of thin white pulse lines on matte black draws your PC's activity; everything is a numbered catalog entry.",
+      "palette": ["#0B0B0B", "#FFFFFF", "#E63946", "#F4A300", "#2A9D8F"],
+      "materials": ["white hairline pulse plot", "colour-code strips", "catalog numbers"],
+      "viewport": "Home is one large pulse-line plot of recent activity with a small catalog index of screens.",
+      "case": "Very futuristic and striking; loses on 'easy to understand' because colour codes replace words.",
+      "risk": "Beautiful but cryptic: users must decode labels.",
+      "hero": "https://impeccable.style/worlds/cards/brand-identity-canon-saville-catalog-sleeve-hero.webp"
+    },
+    {
+      "id": "challenger-flap",
+      "label": "Split-flap Board",
+      "verdict": "competitive",
+      "lineage": "Rail concourse split-flap departure boards",
+      "thesis": "Scans, findings and actions as rows on a departure board that flip when their status changes.",
+      "palette": ["#0A0A0A", "#F5F5F0", "#FFB000", "#C62828", "#8C8C8C"],
+      "materials": ["flap cells", "brushed steel frame", "row lamps"],
+      "viewport": "Diagnostics as a board: each check is a row with status flaps (OK, DELAYED, FAILED).",
+      "case": "Great for scan progress and status lists; weaker for chat and voice.",
+      "risk": "Retro rather than futuristic.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp"
+    },
+    {
+      "id": "challenger-marketing",
+      "label": "Monochrome Product Page",
+      "verdict": "declined",
+      "lineage": "Software product marketing sites",
+      "thesis": "One neutral scale, one rare accent, every claim paired with proof.",
+      "palette": ["#0A0A0A", "#FAFAFA", "#5E6AD2"],
+      "materials": ["neutral scale", "framed screenshots"],
+      "viewport": "Claims and proof screenshots in alternating rows.",
+      "case": "A marketing page, not an app you operate.",
+      "kept": "Every claim followed by its proof.",
+      "risk": "Generic SaaS look.",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-monochrome-product-marketing-hero.webp"
+    },
+    {
+      "id": "challenger-transit",
+      "label": "Midnight Transit Map",
+      "verdict": "declined",
+      "lineage": "Enamel metro maps",
+      "thesis": "Subsystems as coloured lines meeting at interchanges.",
+      "palette": ["#0F1B3D", "#F7F4EC", "#E1251B", "#2B59C3", "#F2A900"],
+      "materials": ["enamel", "line diagram"],
+      "viewport": "Your PC drawn as a metro map.",
+      "case": "A PC is not a journey; the metaphor costs clarity.",
+      "kept": "The chosen line burns brightest.",
+      "risk": "Forced metaphor.",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-midnight-transit-diagram-hero.webp"
+    },
+    {
+      "id": "challenger-gate",
+      "label": "Boarding Pass & Gate Board",
+      "verdict": "declined",
+      "lineage": "Airline boarding passes and gate boards",
+      "thesis": "Ranked rows that rerank in place; changes stay lit.",
+      "palette": ["#111111", "#F2F2F2", "#FFC400"],
+      "materials": ["segmented pass", "gate board"],
+      "viewport": "Findings ranked like departures.",
+      "case": "Too close to the transit world you already re-rolled away from.",
+      "kept": "Changes stay lit until noticed.",
+      "risk": "Transit again.",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-boarding-pass-and-gate-board-hero.webp"
+    },
+    {
+      "id": "challenger-orienteering",
+      "label": "Orienteering Map",
+      "verdict": "declined",
+      "lineage": "ISO orienteering maps",
+      "thesis": "Terrain colours below, a purple course above.",
+      "palette": ["#FFFFFF", "#7A9A3A", "#F7D04A", "#8B5A2B", "#B03FA8"],
+      "materials": ["contours", "control circles"],
+      "viewport": "A course of checks drawn over a terrain of your PC.",
+      "case": "Light, outdoorsy and specialist; not futuristic or simple.",
+      "kept": "A fixed base layer that the active task never edits.",
+      "risk": "Off-brief.",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-orienteering-map-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A Windows 11 style dashboard: sidebar, cards and a blue accent, done well.",
+    "palette": ["#202020", "#2B2B2B", "#FFFFFF", "#4CC2FF"],
+    "materials": ["Fluent mica surfaces", "card grid", "line charts"],
+    "viewport": "Sidebar on the left, a grid of health cards on Home, charts on Monitor.",
+    "risk": "Looks like every system utility and gaming-laptop app."
+  },
+  "steer": true
+}
