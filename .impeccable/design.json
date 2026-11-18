@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T00:00:00Z",
+  "title": "Design System: JARVIS",
+  "extensions": {
+    "colorMeta": {
+      "bg": { "role": "neutral", "displayName": "Console Black", "canonical": "#040404", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "panel": { "role": "neutral", "displayName": "Station Black", "canonical": "#080807", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "panel-raised": { "role": "neutral", "displayName": "Raised", "canonical": "#0e0e0c", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "panel-hover": { "role": "neutral", "displayName": "Hover", "canonical": "#161613", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#24231f", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "line-strong": { "role": "neutral", "displayName": "Strong Hairline", "canonical": "#3b3a35", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "bracket": { "role": "neutral", "displayName": "Bracket White", "canonical": "rgba(236, 233, 226, 0.62)", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "tick": { "role": "neutral", "displayName": "Tick", "canonical": "rgba(236, 233, 226, 0.16)", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "tick-major": { "role": "neutral", "displayName": "Major Tick", "canonical": "rgba(236, 233, 226, 0.34)", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "text": { "role": "neutral", "displayName": "Text", "canonical": "#ece9e2", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "text-2": { "role": "neutral", "displayName": "Text 2", "canonical": "#aaa69d", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "text-3": { "role": "neutral", "displayName": "Text 3", "canonical": "#85817a", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "text-inverse": { "role": "neutral", "displayName": "Inverse", "canonical": "#0b0904", "tonalRamp": ["#040404", "#0e0e0c", "#24231f", "#3b3a35", "#85817a", "#aaa69d", "#ece9e2", "#f8f6f1"] },
+      "jarvis": { "role": "primary", "displayName": "JARVIS Gold", "canonical": "#f5b53d", "tonalRamp": ["#2a1c05", "#4d340b", "#7a5312", "#a8721a", "#d29525", "#f5b53d", "#ffd27a", "#fff0cf"] },
+      "jarvis-bright": { "role": "primary", "displayName": "Flare Gold", "canonical": "#ffd27a", "tonalRamp": ["#2a1c05", "#4d340b", "#7a5312", "#a8721a", "#d29525", "#f5b53d", "#ffd27a", "#fff0cf"] },
+      "jarvis-soft": { "role": "primary", "displayName": "Gold Wash", "canonical": "rgba(245, 181, 61, 0.12)", "tonalRamp": ["#2a1c05", "#4d340b", "#7a5312", "#a8721a", "#d29525", "#f5b53d", "#ffd27a", "#fff0cf"] },
+      "jarvis-line": { "role": "primary", "displayName": "Gold Ring", "canonical": "rgba(245, 181, 61, 0.55)", "tonalRamp": ["#2a1c05", "#4d340b", "#7a5312", "#a8721a", "#d29525", "#f5b53d", "#ffd27a", "#fff0cf"] },
+      "ok": { "role": "signal", "displayName": "Working Green", "canonical": "#5fd38f", "tonalRamp": ["#0d2a1a", "#174a2e", "#226b43", "#2f8d59", "#45b073", "#5fd38f", "#97e5b6", "#d3f6e1"] },
+      "warn": { "role": "signal", "displayName": "Problem Orange", "canonical": "#ff8547", "tonalRamp": ["#3a1a08", "#66300f", "#943f16", "#c4521f", "#ef6a31", "#ff8547", "#ffb08a", "#ffe0d0"] },
+      "bad": { "role": "signal", "displayName": "Fault Red", "canonical": "#ff5363", "tonalRamp": ["#3a0b11", "#661520", "#951f2f", "#c32b40", "#e93c51", "#ff5363", "#ff8d98", "#ffd3d8"] },
+      "bad-ink": { "role": "signal", "displayName": "Fault Ink", "canonical": "#ff8d98", "tonalRamp": ["#3a0b11", "#661520", "#951f2f", "#c32b40", "#e93c51", "#ff5363", "#ff8d98", "#ffd3d8"] },
+      "live": { "role": "signal", "displayName": "Live Red", "canonical": "#ff2e4d", "tonalRamp": ["#3a0610", "#660b1c", "#951229", "#c41a37", "#ee2443", "#ff2e4d", "#ff7b8f", "#ffcdd5"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The Home status sentence under the sun and the enrolled wake phrase. Max 26ch." },
+      "headline": { "displayName": "Headline", "purpose": "One screen title per screen, followed by a text-2 lead." },
+      "title": { "displayName": "Title", "purpose": "Sub-section titles, fact values, the Home detail line." },
+      "body": { "displayName": "Body", "purpose": "Running copy; 14px inside buttons, rail links, tables and empty states." },
+      "small": { "displayName": "Small", "purpose": "Descriptions, hints, field labels, row notes." },
+      "label": { "displayName": "Station Label", "purpose": "Uppercase tracked mono for panel headers, status pills, table headers, fact terms, the ticker and the mic indicator." },
+      "callsign": { "displayName": "Callsign", "purpose": "\"JARVIS\" in gold in the wake overlay; the top-bar brand uses the same voice at 14px." },
+      "readout": { "displayName": "Readout", "purpose": "Tabular mono telemetry readings on Monitor, text-3 until a real value exists." }
+    },
+    "shadows": [
+      { "name": "docked-bar", "value": "0 18px 40px rgba(0, 0, 0, 0.55)", "purpose": "The docked conversation bar floating over the page." },
+      { "name": "sheet", "value": "0 16px 36px rgba(0, 0, 0, 0.6)", "purpose": "The phone More sheet." },
+      { "name": "focus", "value": "0 0 0 1px #040404, 0 0 0 3px #f5b53d", "purpose": "Every :focus-visible: black gap, then a 2px gold ring." }
+    ],
+    "motion": [
+      { "name": "snap", "value": "90ms steps(2, end)", "purpose": "Every UI state change (colour, border, background, switch thumb). The console snaps." },
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Reserved for data fills settling to a measured value." },
+      { "name": "blink", "value": "1.2s steps(2, end) infinite", "purpose": "The live status square." },
+      { "name": "sun-breathe", "value": "3.2s ease-in-out infinite (1.1s when the mic is live)", "purpose": "Top-bar sun glow; the sun alone moves smoothly." },
+      { "name": "sun-spin", "value": "14s linear infinite, back shell 9s reverse (5s when live)", "purpose": "Top-bar sun's counter-rotating dashed shells." },
+      { "name": "window-hidden", "value": "[data-window-hidden] * { animation-play-state: paused }", "purpose": "All CSS motion pauses while the window is hidden." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "760px" },
+      { "name": "icon-rail", "value": "1100px" },
+      { "name": "metric-two-col", "value": "1240px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action JARVIS is asking for in a view. Gold fill, near-black label.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Set up your voice</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 2px; border: 1px solid transparent; font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); font-size: 0.875rem; font-weight: 520; white-space: nowrap; cursor: pointer; transition: background-color 90ms steps(2, end), border-color 90ms steps(2, end), color 90ms steps(2, end); } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--bg, #040404), 0 0 0 3px var(--jarvis, #f5b53d); } .ds-btn-primary { background: var(--jarvis, #f5b53d); color: var(--text-inverse, #0b0904); font-weight: 600; } .ds-btn-primary:hover { background: var(--jarvis-bright, #ffd27a); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default console key: transparent with a strong hairline.",
+      "html": "<button class=\"ds-btn2\">Ask JARVIS</button>",
+      "css": ".ds-btn2 { display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 2px; border: 1px solid var(--line-strong, #3b3a35); background: transparent; color: var(--text, #ece9e2); font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); font-size: 0.875rem; font-weight: 520; cursor: pointer; transition: background-color 90ms steps(2, end), border-color 90ms steps(2, end); } .ds-btn2:hover { border-color: var(--text-2, #aaa69d); background: var(--panel-hover, #161613); } .ds-btn2:active { transform: translateY(1px); } .ds-btn2:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--bg, #040404), 0 0 0 3px var(--jarvis, #f5b53d); }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive confirmations (forget voice). Faint red wash, Fault Ink label.",
+      "html": "<button class=\"ds-btn-danger\">Forget my voice</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 2px; border: 1px solid rgba(255, 83, 99, 0.55); background: rgba(255, 83, 99, 0.1); color: #ff8d98; font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); font-size: 0.875rem; font-weight: 520; cursor: pointer; transition: background-color 90ms steps(2, end); } .ds-btn-danger:hover { background: rgba(255, 83, 99, 0.2); } .ds-btn-danger:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--bg, #040404), 0 0 0 3px var(--jarvis, #f5b53d); }"
+    },
+    {
+      "name": "Station Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Every station: hairline frame, bright corner brackets, mono header with tone square and status meta.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-head\"><svg width=\"6\" height=\"6\" viewBox=\"0 0 6 6\" class=\"ds-marker\"><rect width=\"6\" height=\"6\" fill=\"currentColor\"/></svg><h2 class=\"ds-panel-title\">System</h2><span class=\"ds-panel-meta\">local</span></header><div class=\"ds-panel-body\"><p>Reads CPU, memory, disk, network and Windows events.</p></div></section>",
+      "css": ".ds-panel { position: relative; background: var(--panel, #080807); border: 1px solid var(--line, #24231f); color: var(--text, #ece9e2); font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); font-size: 0.9375rem; max-width: 360px; } .ds-panel::before { content: ''; position: absolute; inset: -1px; pointer-events: none; --b: var(--bracket, rgba(236,233,226,0.62)); background: linear-gradient(var(--b), var(--b)) top left / 10px 1px no-repeat, linear-gradient(var(--b), var(--b)) top left / 1px 10px no-repeat, linear-gradient(var(--b), var(--b)) top right / 10px 1px no-repeat, linear-gradient(var(--b), var(--b)) top right / 1px 10px no-repeat, linear-gradient(var(--b), var(--b)) bottom left / 10px 1px no-repeat, linear-gradient(var(--b), var(--b)) bottom left / 1px 10px no-repeat, linear-gradient(var(--b), var(--b)) bottom right / 10px 1px no-repeat, linear-gradient(var(--b), var(--b)) bottom right / 1px 10px no-repeat; } .ds-panel-head { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 16px; border-bottom: 1px solid var(--line, #24231f); } .ds-marker { color: var(--text-3, #85817a); } .ds-panel-title { margin: 0; font-family: var(--font-mono, 'Geist Mono Variable', ui-monospace, monospace); font-size: 0.6875rem; font-weight: 560; letter-spacing: 0.16em; text-transform: uppercase; } .ds-panel-meta { margin-left: auto; font-size: 0.6875rem; color: var(--text-3, #85817a); } .ds-panel-body { padding: 16px; } .ds-panel-body p { margin: 0; color: var(--text-2, #aaa69d); }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Status as a bracketed mono word with a tone square. Muted is hollow and grey; live blinks in steps.",
+      "html": "<span class=\"ds-pill\"><span class=\"ds-pill-dot\"></span>Not installed</span> <span class=\"ds-pill ds-ok\"><span class=\"ds-pill-dot\"></span>Set</span> <span class=\"ds-pill ds-live\"><span class=\"ds-pill-dot\"></span>Listening</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; font-family: var(--font-mono, 'Geist Mono Variable', ui-monospace, monospace); font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2, #aaa69d); white-space: nowrap; } .ds-pill::before { content: '['; color: var(--text-3, #85817a); font-weight: 400; } .ds-pill::after { content: ']'; color: var(--text-3, #85817a); font-weight: 400; } .ds-pill-dot { width: 6px; height: 6px; border: 1px solid var(--text-3, #85817a); box-sizing: border-box; } .ds-ok { color: var(--ok, #5fd38f); } .ds-live { color: var(--live, #ff2e4d); } .ds-ok .ds-pill-dot, .ds-live .ds-pill-dot { background: currentColor; border: 0; } .ds-live .ds-pill-dot { animation: ds-blink 1.2s steps(2, end) infinite; } @keyframes ds-blink { 50% { opacity: 0.2; } }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A slot cut into the panel: Console Black fill, strong hairline, border snaps gold on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Type to JARVIS\" />",
+      "css": ".ds-input { width: 280px; height: 38px; padding: 0 12px; border-radius: 0; border: 1px solid var(--line-strong, #3b3a35); background: var(--bg, #040404); color: var(--text, #ece9e2); caret-color: var(--jarvis, #f5b53d); font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); font-size: 0.9375rem; transition: border-color 90ms steps(2, end); } .ds-input::placeholder { color: var(--text-3, #85817a); } .ds-input:hover { border-color: var(--text-3, #85817a); } .ds-input:focus { outline: none; border-color: var(--jarvis, #f5b53d); }"
+    },
+    {
+      "name": "Station Rail",
+      "kind": "nav",
+      "refersTo": "rail-link-active",
+      "description": "Left station rail; the selected station takes a gold wash, Gold Ring border and gold corner brackets.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-rail-link is-active\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M3 10l9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z\"/></svg>Home</a><a class=\"ds-rail-link\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></svg>Assistant</a><a class=\"ds-rail-link\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M22 12h-4l-3 9L9 3l-3 9H2\"/></svg>Monitor</a></nav>",
+      "css": ".ds-rail { display: grid; gap: 2px; width: 196px; padding: 8px; background: var(--bg, #040404); } .ds-rail-link { position: relative; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; color: var(--text-2, #aaa69d); text-decoration: none; font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); font-size: 0.875rem; border: 1px solid transparent; transition: color 90ms steps(2, end); } .ds-rail-link:hover { background: var(--panel-hover, #161613); color: var(--text, #ece9e2); } .ds-rail-link:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--bg, #040404), 0 0 0 3px var(--jarvis, #f5b53d); } .ds-rail-link.is-active { color: var(--text, #ece9e2); border-color: var(--jarvis-line, rgba(245,181,61,0.55)); background: var(--jarvis-soft, rgba(245,181,61,0.12)); } .ds-rail-link.is-active svg { color: var(--jarvis, #f5b53d); } .ds-rail-link.is-active::before { content: ''; position: absolute; inset: -3px; pointer-events: none; --g: var(--jarvis, #f5b53d); background: linear-gradient(var(--g), var(--g)) top left / 6px 1px no-repeat, linear-gradient(var(--g), var(--g)) top left / 1px 6px no-repeat, linear-gradient(var(--g), var(--g)) bottom right / 6px 1px no-repeat, linear-gradient(var(--g), var(--g)) bottom right / 1px 6px no-repeat; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "description": "Time ranges and speaking speed. Selected is a gold ring over a gold wash, never a gold fill.",
+      "html": "<div class=\"ds-seg\"><button>1 h</button><button class=\"is-active\">24 h</button><button>7 d</button></div>",
+      "css": ".ds-seg { display: inline-flex; border: 1px solid var(--line-strong, #3b3a35); } .ds-seg button { min-height: 30px; padding: 0 12px; border: 0; background: transparent; color: var(--text-2, #aaa69d); font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); font-size: 0.8125rem; cursor: pointer; transition: background-color 90ms steps(2, end), color 90ms steps(2, end); } .ds-seg button + button { border-left: 1px solid var(--line-strong, #3b3a35); } .ds-seg button:hover { color: var(--text, #ece9e2); background: var(--panel-hover, #161613); } .ds-seg button.is-active { color: var(--text, #ece9e2); background: var(--jarvis-soft, rgba(245,181,61,0.12)); box-shadow: inset 0 0 0 1px var(--jarvis, #f5b53d); font-weight: 560; } .ds-seg button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--jarvis, #f5b53d); }"
+    },
+    {
+      "name": "Switch",
+      "kind": "custom",
+      "refersTo": "switch-on",
+      "description": "Square track and thumb; on fills gold with a near-black thumb. Thumb snaps.",
+      "html": "<button class=\"ds-switch\" role=\"switch\" aria-checked=\"false\" aria-label=\"Off\"><span></span></button> <button class=\"ds-switch is-on\" role=\"switch\" aria-checked=\"true\" aria-label=\"On\"><span></span></button>",
+      "css": ".ds-switch { position: relative; width: 44px; height: 22px; padding: 0; border-radius: 0; border: 1px solid var(--line-strong, #3b3a35); background: var(--bg, #040404); cursor: pointer; transition: background-color 90ms steps(2, end), border-color 90ms steps(2, end); } .ds-switch span { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: var(--text-2, #aaa69d); transition: transform 90ms steps(2, end), background-color 90ms steps(2, end); } .ds-switch.is-on { background: var(--jarvis, #f5b53d); border-color: var(--jarvis, #f5b53d); } .ds-switch.is-on span { transform: translateX(22px); background: var(--text-inverse, #0b0904); } .ds-switch:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--bg, #040404), 0 0 0 3px var(--jarvis, #f5b53d); }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "description": "Honest nothing-here-yet block: dashed hairline, line icon, what will appear and why it is empty.",
+      "html": "<div class=\"ds-empty\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M2 12h3l3-8 4 16 3-8h7\"/></svg><div><p class=\"ds-empty-title\">No readings yet</p><p class=\"ds-empty-text\">Live CPU, memory, disk and network appear here once the JARVIS agent is installed.</p></div></div>",
+      "css": ".ds-empty { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; padding: 16px; border: 1px dashed var(--line-strong, #3b3a35); background: rgba(4, 4, 4, 0.6); color: var(--text, #ece9e2); font-family: var(--font-sans, 'Geist Variable', system-ui, sans-serif); max-width: 520px; } .ds-empty svg { color: var(--text-2, #aaa69d); margin-top: 2px; } .ds-empty p { margin: 0; } .ds-empty-title { font-weight: 540; } .ds-empty-text { color: var(--text-2, #aaa69d); font-size: 0.875rem; margin-top: 4px !important; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Flight Controller's Console",
+    "overview": "JARVIS is a console for one PC, and every screen is a console station. The ground is pure black, the linework is warm white at low strength, and the type speaks in two voices: a calm humanist sans for sentences and a tracked mono for station headers, statuses and readings. Nothing on the console glows, gradients or floats except the one living thing in the room: a gold flaming sun that is JARVIS. It burns on Home as a canvas sun with telemetry lines running into it, sits in the top bar as a small SVG sun, and on the wake phrase it contracts, flares and takes the whole window.\n\nThe density is a working console's, not a dashboard of soft cards. Panels are bracketed frames: a hairline box with brighter corner brackets and a mono header bar. Ruler tick strips on the 8px grid run under the top bar, down the rail edge and down the sun's stage, so the grid the layout snaps to is visible. Status is a word, never a bare colour: a bracketed mono label with a small tone square. The console is calm by default; grey means \"not set up yet\" or \"no data\", and colour is reserved for something actually happening.\n\nThe world refuses the neon-cyan sci-fi HUD (the retired navy/cyan particle-torus world) and the grid of soft rounded cards.",
+    "keyCharacteristics": [
+      "Pure black ground (#040404), hairline frames, bright corner brackets, mono station headers.",
+      "Monochrome text in three warm-grey steps; gold is reserved for JARVIS.",
+      "Status is a bracketed mono word with a tone square: `[ ■ NOT SET ]`.",
+      "Visible 8px ruler ticks with a major tick every 64px.",
+      "UI state changes snap in two frames (90ms steps(2)); only the sun moves smoothly.",
+      "Square corners: 0 for frames, fields and switches; 2px at most for buttons."
+    ],
+    "rules": [
+      { "name": "The Gold Is JARVIS Rule", "body": "Gold appears only where JARVIS is: the sun, the primary action, the selected-item ring, the live wire. Never use gold as a status tone, a chart colour or decoration.", "section": "colors" },
+      { "name": "The Calm Console Rule", "body": "Not set up, not connected, no data and off are grey (`tone-muted`: a hollow square and `text-2`). Orange is for real problems only; red is for a live mic and faults. A screen full of \"not installed\" states should read entirely grey.", "section": "colors" },
+      { "name": "The One Meaning Rule", "body": "Each signal colour carries one meaning, and always with a word beside it. Colour never stands alone.", "section": "colors" },
+      { "name": "The Two Voices Rule", "body": "Sentences are sans in sentence case; console furniture (headers, statuses, readings, units of the machine) is uppercase tracked mono. Never set a sentence in mono caps, and never set a station header in sans.", "section": "typography" },
+      { "name": "The Weight Ceiling Rule", "body": "Headings sit between 480 and 560; 600 is reserved for the primary button label, the brand and the LIVE chip.", "section": "typography" },
+      { "name": "The Flat Station Rule", "body": "Panels never lift. Shadows belong only to things that float above the page (the docked bar, the More sheet).", "section": "elevation" },
+      { "name": "The Only Light Rule", "body": "The only light source on the console is the sun: the warm radial wash behind the Home stage and the wake overlay comes from it. Nothing else glows.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do frame every station as a panel: hairline box, 10px Bracket White corners, 36px mono header with a 6px tone square.",
+      "Do write status as a bracketed mono word with a tone square, and keep \"not set up\", \"not connected\", \"off\" and \"no data\" grey.",
+      "Do keep gold for JARVIS alone: the sun, one primary action per view, the selected-item ring, the live wire, focus.",
+      "Do mark selection with a gold wash and a 1px gold ring, not a gold fill.",
+      "Do snap UI state changes with 90ms steps(2) and pause all CSS motion under `[data-window-hidden]`.",
+      "Do align to the 8px grid and let ruler ticks show it.",
+      "Do use Fault Ink (#ff8d98) for red text; keep Fault Red for squares, borders and fills."
+    ],
+    "donts": [
+      "Don't drift toward the neon-cyan sci-fi HUD: no cyan, no navy, no particle torus, no glows on frames or text.",
+      "Don't build a grid of soft cards: no rounded panels, no radius above 2px, no shadows on stations.",
+      "Don't use gold as a status, a risk class, a chart series or an accent stripe.",
+      "Don't use orange for missing setup or unavailable data; orange means a real problem.",
+      "Don't ease or slide UI chrome; only the sun moves smoothly.",
+      "Don't show a colour without a word beside it.",
+      "Don't fill empty states with sample or fabricated readings; show the honest empty state."
+    ]
+  }
+}

@@ -6,9 +6,14 @@ import { useVoice } from '../state/useVoice';
 import { navigate } from '../state/router';
 import { voice } from '../voice/engine';
 import { AGENT } from '../state/agent';
+import { useProfile } from '../state/profile';
+import { partOfDay } from '../voice/intents';
+import { count } from '../state/perf';
 
 export function Home() {
+  count('homeRenders');
   const v = useVoice();
+  const profile = useProfile();
   const wake = v.commands.find((c) => c.action === 'wake');
   const listening = v.enabled && v.status === 'listening';
   const commandCount = v.commands.filter((c) => c.action !== 'wake').length;
@@ -19,12 +24,11 @@ export function Home() {
       label: 'Voice',
       detail: listening ? 'Listening' : wake ? 'Set up · off' : 'Not set up',
       state: listening ? 'live' : wake ? 'idle' : 'missing',
-      color: '#3ee38c',
     },
-    { id: 'cpu', label: 'CPU', detail: 'Needs agent', state: 'missing', color: '#3fb8ff' },
-    { id: 'memory', label: 'Memory', detail: 'Needs agent', state: 'missing', color: '#ffb547' },
-    { id: 'disk', label: 'Disk', detail: 'Needs agent', state: 'missing', color: '#b48cff' },
-    { id: 'network', label: 'Network', detail: 'Needs agent', state: 'missing', color: '#ff7a59' },
+    { id: 'cpu', label: 'CPU', detail: 'No data', state: 'missing' },
+    { id: 'memory', label: 'Memory', detail: 'No data', state: 'missing' },
+    { id: 'disk', label: 'Disk', detail: 'No data', state: 'missing' },
+    { id: 'network', label: 'Network', detail: 'No data', state: 'missing' },
   ];
 
   let headline: string;
@@ -36,7 +40,9 @@ export function Home() {
     headline = 'Your voice is set up. Listening is off.';
     detail = `Turn listening on and say “${wake.phrase}” to wake JARVIS. Nothing is recorded or sent anywhere.`;
   } else {
-    headline = `Say “${wake.phrase}” and I’ll answer.`;
+    const part = partOfDay(new Date());
+    const hello = part === 'night' ? 'Hello' : `Good ${part}`;
+    headline = `${hello}${profile.name ? `, ${profile.name}` : ''}. Say “${wake.phrase}” and I’ll answer.`;
     detail = 'JARVIS is listening on this PC only and responds to your voice alone. PC health appears here once the agent is installed.';
   }
 
@@ -44,8 +50,9 @@ export function Home() {
     <div className="home">
       <Panel
         title="JARVIS core"
+        tone="jarvis"
         className="home-core"
-        meta={<StatusPill tone={listening ? 'live' : wake ? 'muted' : 'warn'}>{listening ? 'Listening' : wake ? 'Asleep' : 'Voice not set up'}</StatusPill>}
+        meta={<StatusPill tone={listening ? 'live' : 'muted'}>{listening ? 'Listening' : wake ? 'Asleep' : 'Voice not set up'}</StatusPill>}
       >
         <div className="home-core-stage">
           <Core
@@ -109,16 +116,16 @@ export function Home() {
           </Button>
         </Panel>
 
-        <Panel title="System" tone="warn" meta={<span className="mono">local</span>}>
+        <Panel title="System" meta={<span className="mono">local</span>}>
           <ul className="sysrows">
             <li>
               <span className="sysrow-name">JARVIS agent</span>
-              <StatusPill tone="warn">{AGENT.agent === 'online' ? 'Online' : 'Not installed'}</StatusPill>
+              <StatusPill tone="muted">{AGENT.agent === 'online' ? 'Online' : 'Not installed'}</StatusPill>
               <span className="sysrow-note">Reads CPU, memory, disk, network and Windows events.</span>
             </li>
             <li>
               <span className="sysrow-name">Local AI</span>
-              <StatusPill tone="warn">Not connected</StatusPill>
+              <StatusPill tone="muted">Not connected</StatusPill>
               <span className="sysrow-note">Ollama on this PC explains findings in plain language.</span>
             </li>
             <li>

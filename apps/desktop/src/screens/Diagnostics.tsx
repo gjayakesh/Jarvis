@@ -18,7 +18,7 @@ export function Diagnostics() {
       <ScreenHeader title="Diagnostics">Run a check and JARVIS explains what it found, with the evidence behind every finding.</ScreenHeader>
 
       <div className="diag-grid">
-        <Panel title="Scans" className="diag-scans" meta={<StatusPill tone="warn">Agent not installed</StatusPill>}>
+        <Panel title="Scans" className="diag-scans" meta={<StatusPill tone="muted">Agent not installed</StatusPill>}>
           <ul className="profiles">
             {PROFILES.map((p, i) => (
               <li key={p.id} className="profile">

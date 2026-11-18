@@ -6,7 +6,7 @@ import { useVoice } from '../state/useVoice';
 /** Risk classes from the spec (§12.1). */
 const RISK = [
   { id: 'R0', name: 'Read only', tone: 'ok' as const, rule: 'Runs on its own.', example: 'Reading CPU use, checking events, testing DNS.' },
-  { id: 'R1', name: 'Safe and reversible', tone: 'jarvis' as const, rule: 'Runs on its own only if you turn on “apply safe fixes”.', example: 'Clearing the DNS cache.' },
+  { id: 'R1', name: 'Safe and reversible', tone: 'ok' as const, rule: 'Runs on its own only if you turn on “apply safe fixes”.', example: 'Clearing the DNS cache.' },
   { id: 'R2', name: 'Changes settings', tone: 'warn' as const, rule: 'Asks you every time and shows exactly what will change.', example: 'Restarting a service, changing DNS, repairing system files.' },
   { id: 'R3', name: 'Risky or destructive', tone: 'bad' as const, rule: 'Never automatic. JARVIS only guides you.', example: 'BIOS updates, formatting drives, deleting files.' },
 ];

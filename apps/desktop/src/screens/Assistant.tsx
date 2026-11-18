@@ -3,7 +3,7 @@ import { CornerDownLeft, Eraser, Mic, MessageSquare } from 'lucide-react';
 import { Button, Empty, Panel, ScreenHeader } from '../components/ui';
 import { clearConversation, send, useConversation } from '../state/assistant';
 
-const SUGGESTIONS = ['Why is my PC slow?', 'What changed before the last crash?', 'Check my Wi-Fi', 'Open my development setup'];
+const SUGGESTIONS = ['What time is it?', 'Set a timer for 5 minutes', 'Tell me a joke', 'What is 18% of 2400?', 'Why is my PC slow?'];
 
 export function Assistant() {
   const turns = useConversation();
@@ -38,7 +38,8 @@ export function Assistant() {
         <div className="chat-log" aria-live="polite">
           {turns.length === 0 ? (
             <Empty icon={MessageSquare} title="Start with a question">
-              The local AI isn’t connected yet, so JARVIS can’t reason about your PC. It will tell you honestly instead of guessing.
+              JARVIS already handles everyday requests: the time, timers and reminders, quick maths, opening apps and websites. Questions
+              about your PC need the local AI, which isn’t connected yet, so it will say so instead of guessing.
             </Empty>
           ) : (
             turns.map((t) => (
@@ -77,7 +78,7 @@ export function Assistant() {
             <span>Send</span>
           </button>
         </form>
-        <p className="field-hint">Hold to talk (full sentences) arrives with the agent’s on-device speech-to-text. Your voice commands already work.</p>
+        <p className="field-hint">To talk instead of typing, say your wake phrase and then your request. Spoken requests and answers show up here too.</p>
       </Panel>
     </div>
   );

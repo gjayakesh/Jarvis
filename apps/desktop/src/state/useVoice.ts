@@ -5,7 +5,7 @@ export function useVoice(): VoiceState {
   return useSyncExternalStore(voice.subscribe, voice.getState, voice.getState);
 }
 
-export const ACTION_LABELS: Record<import('../voice/matcher').CommandAction, string> = {
+export const ACTION_LABELS: Record<import('../voice/text').CommandAction, string> = {
   wake: 'Wake JARVIS',
   'open-home': 'Open Home',
   'open-assistant': 'Open Assistant',
@@ -14,4 +14,5 @@ export const ACTION_LABELS: Record<import('../voice/matcher').CommandAction, str
   'start-quick-scan': 'Start a quick scan',
   'open-activity': 'Open Activity & safety',
   'stop-listening': 'Go back to sleep',
+  'hide-jarvis': 'Close JARVIS (keeps listening)',
 };

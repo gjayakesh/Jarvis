@@ -1,12 +1,12 @@
-import { Cpu, HardDrive, MemoryStick, Network, Pause, Rows3 } from 'lucide-react';
+import { Pause, Rows3 } from 'lucide-react';
 import { Button, Empty, Panel, ScreenHeader, StatusPill } from '../components/ui';
 import { AGENT_MISSING } from '../state/agent';
 
 const METRICS = [
-  { title: 'CPU', icon: Cpu, unit: '%', what: 'How busy the processor is, and which apps use it.' },
-  { title: 'Memory', icon: MemoryStick, unit: 'GB', what: 'How much memory is in use and how much is free.' },
-  { title: 'Disk', icon: HardDrive, unit: 'MB/s', what: 'Read and write activity, and free space per drive.' },
-  { title: 'Network', icon: Network, unit: 'Mb/s', what: 'Upload and download traffic per adapter.' },
+  { title: 'CPU', unit: '%', source: 'Windows performance counters', what: 'How busy the processor is, and which apps use it.' },
+  { title: 'Memory', unit: 'GB', source: 'Windows memory status', what: 'How much memory is in use and how much is free.' },
+  { title: 'Disk', unit: 'MB/s', source: 'Disk counters per drive', what: 'Read and write activity, and free space per drive.' },
+  { title: 'Network', unit: 'Mb/s', source: 'Adapter counters', what: 'Upload and download traffic per adapter.' },
 ];
 
 export function Monitor() {
@@ -27,23 +27,38 @@ export function Monitor() {
         </Button>
       </div>
 
-      <div className="metric-grid">
-        {METRICS.map((m) => (
-          <Panel key={m.title} title={m.title} meta={<StatusPill tone="muted">No data</StatusPill>} className="metric">
-            <div className="metric-empty">
-              <span className="metric-value mono" aria-label="No reading">
-                --<span className="metric-unit">{m.unit}</span>
-              </span>
-              <div className="metric-axis" aria-hidden="true">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span key={i} />
-                ))}
-              </div>
-              <p className="muted">{m.what}</p>
-            </div>
-          </Panel>
-        ))}
-      </div>
+      <Panel title="Telemetry" meta={<StatusPill tone="muted">No data</StatusPill>}>
+        <table className="table telemetry">
+          <caption className="visually-hidden">Live readings, one row per station</caption>
+          <thead>
+            <tr>
+              <th scope="col">Station</th>
+              <th scope="col" className="num">Reading</th>
+              <th scope="col">What it shows</th>
+              <th scope="col">Source</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {METRICS.map((m) => (
+              <tr key={m.title}>
+                <th scope="row" className="telemetry-station mono">
+                  {m.title}
+                </th>
+                <td className="num telemetry-reading mono" aria-label={`No ${m.title} reading`}>
+                  --<span className="telemetry-unit">{m.unit}</span>
+                </td>
+                <td className="muted">{m.what}</td>
+                <td className="telemetry-source mono">{m.source}</td>
+                <td>
+                  <StatusPill tone="muted">No data</StatusPill>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="field-hint">{AGENT_MISSING} Readings and a trace over the chosen range appear here once it is.</p>
+      </Panel>
 
       <Panel title="Processes" meta={<StatusPill tone="muted">No data</StatusPill>}>
         <table className="table">

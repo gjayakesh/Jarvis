@@ -1,69 +1,70 @@
 import { useEffect, useState } from 'react';
 import { Check, Circle, Mic, RotateCcw, Save, X } from 'lucide-react';
 import { Button, LevelMeter } from './ui';
-import { useVoice, ACTION_LABELS } from '../state/useVoice';
-import { voice, type CaptureResult } from '../voice/engine';
-import type { Utterance } from '../voice/features';
-import type { CommandAction } from '../voice/matcher';
+import { useVoice } from '../state/useVoice';
+import { voice, type CaptureIssue, type Sample } from '../voice/engine';
 
 const TARGET = 4;
 const MINIMUM = 3;
 
-const ISSUE_TEXT: Record<NonNullable<CaptureResult['issue']>, string> = {
+const ISSUE_TEXT: Record<CaptureIssue, string> = {
   'too-quiet': 'That was too quiet. Move closer to the microphone and try again.',
   clipped: 'That was too loud and distorted. Move back a little and try again.',
-  'no-voice': 'I could not hear a voice in that. Try again in a quieter spot.',
   'too-short': 'That was very short. Say the whole phrase at a normal pace.',
-  'too-long': 'That was too long for a command. Say just the phrase.',
-  inconsistent: 'That sounded different from your other samples. Say the same phrase the same way.',
+  'too-long': 'That went on too long for a wake phrase. Say just the phrase, then pause.',
   timeout: 'I did not hear anything. Press record and say the phrase.',
-  noisy: 'There was continuous sound and I could not hear where your phrase started and ended. Pause any music or video, then say the phrase with a short silence before and after.',
   mic: 'The microphone could not be used, so nothing was recorded. See the note below.',
+  models: 'The voice models could not load. See the note below.',
+  'wrong-words': 'I heard different words. Say the phrase clearly, exactly as typed.',
 };
 
 interface Props {
   title: string;
   initialPhrase?: string;
-  /** Fixed action (wake phrase) or a list to choose from. */
-  action: CommandAction | CommandAction[];
   onSaved: () => void;
   onCancel?: () => void;
 }
 
-export function PhraseRecorder({ title, initialPhrase = '', action, onSaved, onCancel }: Props) {
+/** Records the wake phrase a few times: checks the words and learns the voiceprint. */
+export function PhraseRecorder({ title, initialPhrase = '', onSaved, onCancel }: Props) {
   const v = useVoice();
   const [phrase, setPhrase] = useState(initialPhrase);
-  const [chosen, setChosen] = useState<CommandAction>(Array.isArray(action) ? action[0] : action);
-  const [samples, setSamples] = useState<Utterance[]>([]);
+  const [samples, setSamples] = useState<Sample[]>([]);
   const [recording, setRecording] = useState(false);
   const [message, setMessage] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
 
-  useEffect(() => () => voice.releaseMic(), []);
+  useEffect(() => {
+    void voice.loadModels();
+    voice.warmSpeaker();
+    return () => voice.releaseMic();
+  }, []);
 
-  const phraseOk = phrase.trim().split(/\s+/).filter(Boolean).length >= 1 && phrase.trim().length >= 3;
   const words = phrase.trim().split(/\s+/).filter(Boolean).length;
+  const phraseOk = phrase.trim().length >= 3;
   const done = samples.length >= TARGET;
   const micProblem = v.status === 'blocked' || v.status === 'unavailable' || v.status === 'error';
+  const modelsLoading = v.models === 'loading' || v.models === 'idle';
 
   const record = async () => {
     setMessage(null);
     setRecording(true);
-    const result = await voice.captureSample(samples);
+    const result = await voice.captureSample(phrase);
     setRecording(false);
-    if (result.utterance) {
-      const next = [...samples, result.utterance];
+    if (result.sample) {
+      const next = [...samples, result.sample];
       setSamples(next);
       setMessage({
         tone: 'ok',
-        text: next.length >= TARGET ? 'All samples recorded. Save to finish.' : `Got it. ${TARGET - next.length} more to go.`,
+        text: `Heard “${result.sample.text}”. ${next.length >= TARGET ? 'All samples recorded. Save to finish.' : `${TARGET - next.length} more to go.`}`,
       });
     } else if (result.issue) {
-      setMessage({ tone: 'bad', text: ISSUE_TEXT[result.issue] });
+      const heard = result.heardText ? ` (I heard “${result.heardText}”.)` : '';
+      setMessage({ tone: 'bad', text: ISSUE_TEXT[result.issue] + heard });
     }
   };
 
   const save = () => {
-    voice.saveCommand({ phrase, action: chosen, samples });
+    voice.saveWake(phrase, samples);
     voice.releaseMic();
     onSaved();
   };
@@ -71,46 +72,25 @@ export function PhraseRecorder({ title, initialPhrase = '', action, onSaved, onC
   return (
     <div className="recorder">
       <h3 className="recorder-title">{title}</h3>
-      <div className="recorder-fields">
-        <div className="field">
-          <label htmlFor={`phrase-${title}`}>Phrase</label>
-          <input
-            id={`phrase-${title}`}
-            className="input"
-            value={phrase}
-            maxLength={40}
-            disabled={samples.length > 0 || recording}
-            onChange={(e) => setPhrase(e.target.value)}
-            placeholder={Array.isArray(action) ? 'e.g. Open monitor' : 'e.g. Hey Jarvis'}
-            aria-describedby={`phrase-hint-${title}`}
-          />
-          <span id={`phrase-hint-${title}`} className="field-hint">
-            {samples.length > 0
-              ? 'Clear the samples to change the phrase.'
-              : words > 5
-                ? 'Shorter is better: two to four words.'
-                : 'Two to four words you would not say by accident.'}
-          </span>
-        </div>
-        {Array.isArray(action) && (
-          <div className="field">
-            <label htmlFor={`action-${title}`}>What it does</label>
-            <select
-              id={`action-${title}`}
-              className="input"
-              value={chosen}
-              onChange={(e) => setChosen(e.target.value as CommandAction)}
-              disabled={recording}
-            >
-              {action.map((a) => (
-                <option key={a} value={a}>
-                  {ACTION_LABELS[a]}
-                </option>
-              ))}
-            </select>
-            <span className="field-hint">Commands work after you say your wake phrase.</span>
-          </div>
-        )}
+      <div className="field">
+        <label htmlFor="wake-phrase-input">Wake phrase</label>
+        <input
+          id="wake-phrase-input"
+          className="input"
+          value={phrase}
+          maxLength={40}
+          disabled={samples.length > 0 || recording}
+          onChange={(e) => setPhrase(e.target.value)}
+          placeholder="e.g. Hey Jarvis"
+          aria-describedby="wake-phrase-hint"
+        />
+        <span id="wake-phrase-hint" className="field-hint">
+          {samples.length > 0
+            ? 'Clear the samples to change the phrase.'
+            : words > 4
+              ? 'Shorter is better: two or three words.'
+              : 'Two or three words that you would not say by accident. A name helps, like “Hey Jarvis”.'}
+        </span>
       </div>
 
       <ol className="samples" aria-label="Recorded samples">
@@ -134,14 +114,16 @@ export function PhraseRecorder({ title, initialPhrase = '', action, onSaved, onC
           <BackgroundReadout db={v.backgroundDb} />
         </div>
         <p className="recorder-prompt">
-          {recording ? (
+          {modelsLoading ? (
+            (v.modelMessage ?? 'Loading voice models…')
+          ) : recording ? (
             <>
               Say <strong>“{phrase.trim()}”</strong> now, then pause.
             </>
           ) : done ? (
             'Ready to save.'
           ) : (
-            `Press record, say the phrase once, then pause. Sample ${samples.length + 1} of ${TARGET}.`
+            `Press record, say the phrase once in your normal voice, then pause. Sample ${samples.length + 1} of ${TARGET}.`
           )}
         </p>
       </div>
@@ -155,10 +137,15 @@ export function PhraseRecorder({ title, initialPhrase = '', action, onSaved, onC
           {v.errorMessage}
         </p>
       )}
+      {v.models === 'error' && v.modelMessage && (
+        <p className="inline-error" role="alert">
+          {v.modelMessage}
+        </p>
+      )}
 
       <div className="recorder-actions">
         {!done && (
-          <Button variant="primary" icon={Mic} onClick={record} disabled={!phraseOk || recording}>
+          <Button variant="primary" icon={Mic} onClick={record} disabled={!phraseOk || recording || modelsLoading}>
             {recording ? 'Listening…' : samples.length === 0 ? 'Record first sample' : 'Record next sample'}
           </Button>
         )}
@@ -187,7 +174,10 @@ export function PhraseRecorder({ title, initialPhrase = '', action, onSaved, onC
         )}
       </div>
       {samples.length === 0 && !recording && (
-        <p className="field-hint">The first time, Windows asks to let JARVIS use your microphone. Audio stays on this PC and is never saved.</p>
+        <p className="field-hint">
+          Speech is understood on this PC by a local speech-to-text model, and your samples become a voiceprint so JARVIS answers only you. No
+          audio is saved or sent.
+        </p>
       )}
     </div>
   );

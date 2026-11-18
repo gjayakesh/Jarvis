@@ -1,10 +1,11 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
+/** Station marker: a small filled square, tinted by the station's tone. */
 export function Diamond({ tone = 'jarvis' }: { tone?: Tone }) {
   return (
-    <svg className={`diamond tone-${tone}`} width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
-      <path d="M4 0 8 4 4 8 0 4Z" />
+    <svg className={`marker tone-${tone}`} width="6" height="6" viewBox="0 0 6 6" aria-hidden="true">
+      <rect width="6" height="6" />
     </svg>
   );
 }
@@ -22,7 +23,7 @@ interface PanelProps {
 }
 
 /** Hairline-framed terminal panel with a mono header bar. */
-export function Panel({ title, meta, tone = 'jarvis', className = '', children, headingLevel = 2, id }: PanelProps) {
+export function Panel({ title, meta, tone = 'muted', className = '', children, headingLevel = 2, id }: PanelProps) {
   const Heading = headingLevel === 2 ? 'h2' : 'h3';
   const headingId = id ?? `panel-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   return (

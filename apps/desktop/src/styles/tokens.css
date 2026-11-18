@@ -4,43 +4,47 @@
 :root {
   color-scheme: dark;
 
-  /* Ground and panels: night navy, stepped */
-  --bg: #04080f;
-  --panel: #07101d;
-  --panel-raised: #0a1626;
-  --panel-hover: #0e1d31;
-  --line: #142b45;
-  --line-strong: #24507d;
-  --line-active: #3fb8ff;
+  /* Ground and frames: a flight console, black with warm white linework */
+  --bg: #040404;
+  --panel: #080807;
+  --panel-raised: #0e0e0c;
+  --panel-hover: #161613;
+  --line: #24231f;
+  --line-strong: #3b3a35;
+  --bracket: rgba(236, 233, 226, 0.62);
+  --tick: rgba(236, 233, 226, 0.16);
+  --tick-major: rgba(236, 233, 226, 0.34);
 
-  /* Text */
-  --text: #e3eefb;
-  --text-2: #9db2cb;
-  --text-3: #6f89a6;
-  --text-inverse: #04080f;
+  /* Text: one warm grey family */
+  --text: #ece9e2;
+  --text-2: #aaa69d;
+  --text-3: #85817a;
+  --text-inverse: #0b0904;
 
-  /* Signals: each colour has one meaning */
-  --jarvis: #3fb8ff; /* JARVIS, information, selection */
-  --jarvis-soft: rgba(63, 184, 255, 0.14);
-  --ok: #3ee38c;
-  --ok-soft: rgba(62, 227, 140, 0.12);
-  --warn: #ffb547;
-  --warn-soft: rgba(255, 181, 71, 0.12);
-  --bad: #ff4d5e;
-  --bad-soft: rgba(255, 77, 94, 0.13);
+  /* Gold is JARVIS alone: the sun, the primary action, the selected station */
+  --jarvis: #f5b53d;
+  --jarvis-bright: #ffd27a;
+  --jarvis-soft: rgba(245, 181, 61, 0.12);
+  --jarvis-line: rgba(245, 181, 61, 0.55);
+
+  /* Signals: each colour has one meaning, always with a word beside it */
+  --ok: #5fd38f;
+  --warn: #ff8547;
+  --bad: #ff5363;
+  --bad-ink: #ff8d98; /* red text that stays readable at small sizes */
   --live: #ff2e4d;
 
   /* Type */
   --font-sans: 'Geist Variable', system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
-  --fs-label: 0.6875rem; /* 11px panel headers */
+  --fs-label: 0.6875rem; /* 11px station headers */
   --fs-small: 0.8125rem;
   --fs-body: 0.9375rem;
   --fs-lead: 1.125rem;
-  --fs-title: 1.625rem;
-  --fs-display: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+  --fs-title: 1.75rem;
+  --fs-display: clamp(1.75rem, 1.2rem + 1.6vw, 2.625rem);
 
-  /* Space (4px base) */
+  /* Space: an 8px console grid (the ruler ticks mark it) */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -49,9 +53,11 @@
   --s6: 32px;
   --s7: 48px;
 
-  --radius: 3px;
+  --radius: 2px;
   --rail: 212px;
-  --topbar: 44px;
+  --topbar: 48px;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--jarvis);
+  /* Console state changes snap in two frames; only the sun moves smoothly. */
+  --snap: 90ms steps(2, end);
+  --focus: 0 0 0 1px var(--bg), 0 0 0 3px var(--jarvis);
 }

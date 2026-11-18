@@ -7,3 +7,6 @@ apps/desktop/tests/fixtures/audio/
 .playwright-cli/
 .impeccable/decision/answer.txt
 *.tsbuildinfo
+apps/desktop/public/models/
+apps/desktop/public/ort/
+apps/desktop/.impeccable/review/

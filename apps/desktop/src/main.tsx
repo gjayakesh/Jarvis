@@ -16,4 +16,7 @@ if (import.meta.env.DEV) {
   void import('./voice/engine').then(({ voice }) => {
     (window as unknown as { __jarvisVoice: unknown }).__jarvisVoice = voice;
   });
+  void import('./state/perf').then((perf) => {
+    (window as unknown as { __jarvisPerf: unknown }).__jarvisPerf = perf;
+  });
 }

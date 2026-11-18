@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Mic,
   MicOff,
+  Ellipsis,
   ScanSearch,
   Settings,
   ShieldCheck,
@@ -17,16 +18,21 @@ import { navigate, type Route } from '../state/router';
 import { useVoice } from '../state/useVoice';
 import { voice, type VoiceState } from '../voice/engine';
 import { AGENT } from '../state/agent';
+import { SunMark } from './SunMark';
+import { count } from '../state/perf';
 
-const NAV: { route: Route; label: string; icon: LucideIcon }[] = [
-  { route: 'home', label: 'Home', icon: House },
-  { route: 'assistant', label: 'Assistant', icon: MessageSquare },
-  { route: 'voice', label: 'Voice', icon: AudioLines },
-  { route: 'diagnostics', label: 'Diagnostics', icon: ScanSearch },
-  { route: 'monitor', label: 'Monitor', icon: Gauge },
-  { route: 'automation', label: 'Automation', icon: Workflow },
-  { route: 'activity', label: 'Activity & safety', icon: ShieldCheck },
-  { route: 'settings', label: 'Settings', icon: Settings },
+/** How many stations get their own tab on a phone; the rest sit under More. */
+const PHONE_TABS = 5;
+
+const NAV: { route: Route; label: string; short: string; icon: LucideIcon }[] = [
+  { route: 'home', label: 'Home', short: 'Home', icon: House },
+  { route: 'assistant', label: 'Assistant', short: 'Ask', icon: MessageSquare },
+  { route: 'voice', label: 'Voice', short: 'Voice', icon: AudioLines },
+  { route: 'diagnostics', label: 'Diagnostics', short: 'Scan', icon: ScanSearch },
+  { route: 'monitor', label: 'Monitor', short: 'Monitor', icon: Gauge },
+  { route: 'automation', label: 'Automation', short: 'Auto', icon: Workflow },
+  { route: 'activity', label: 'Activity & safety', short: 'Safety', icon: ShieldCheck },
+  { route: 'settings', label: 'Settings', short: 'Settings', icon: Settings },
 ];
 
 function micSummary(v: VoiceState): { text: string; tone: 'live' | 'muted' | 'warn' } {
@@ -75,11 +81,24 @@ function tickerItems(v: VoiceState): string[] {
 }
 
 export function Shell({ route, children }: { route: Route; children: ReactNode }) {
+  count('shellRenders');
   const v = useVoice();
   const clock = useClock();
   const mic = micSummary(v);
   const items = tickerItems(v);
   const micOn = v.enabled && v.status === 'listening';
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreActive = NAV.slice(PHONE_TABS).some((n) => n.route === route);
+
+  useEffect(() => setMoreOpen(false), [route]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [moreOpen]);
 
   return (
     <div className="app">
@@ -88,13 +107,9 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
       </a>
       <header className="topbar">
         <div className="brand">
-          <svg className="brand-mark" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-            <circle cx="11" cy="11" r="9.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-            <circle cx="11" cy="11" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 2.2" />
-            <circle cx="11" cy="11" r="1.6" fill="currentColor" />
-          </svg>
+          <SunMark live={micOn || v.capturing} />
           <span className="brand-name">JARVIS</span>
-          <span className="brand-sub mono">PC INTELLIGENCE</span>
+          <span className="brand-sub mono">PC console</span>
         </div>
         <div className={`live-chip ${micOn || v.capturing ? 'is-live' : ''}`} aria-hidden="true">
           {micOn || v.capturing ? 'LIVE' : 'IDLE'}
@@ -127,18 +142,51 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
 
       <nav className="rail" aria-label="Main">
         <ul>
-          {NAV.map(({ route: r, label, icon: Icon }) => (
-            <li key={r}>
+          {NAV.map(({ route: r, label, short, icon: Icon }, i) => (
+            <li key={r} className={i >= PHONE_TABS ? 'is-extra' : undefined}>
               <a href={`#/${r}`} className={`rail-link ${route === r ? 'is-active' : ''}`} aria-current={route === r ? 'page' : undefined}>
                 <Icon size={18} strokeWidth={1.6} aria-hidden="true" />
                 <span className="rail-label">{label}</span>
+                <span className="rail-short" aria-hidden="true">
+                  {short}
+                </span>
               </a>
             </li>
           ))}
+          {/* Phones show five tabs; the rest live under More. */}
+          <li className="rail-more">
+            <button
+              type="button"
+              className={`rail-link ${moreActive ? 'is-active' : ''}`}
+              aria-expanded={moreOpen}
+              aria-controls="more-sheet"
+              onClick={() => setMoreOpen((o) => !o)}
+            >
+              <Ellipsis size={18} strokeWidth={1.6} aria-hidden="true" />
+              <span className="rail-short">More</span>
+            </button>
+          </li>
         </ul>
+        {moreOpen && (
+          <ul id="more-sheet" className="more-sheet" aria-label="More screens">
+            {NAV.slice(PHONE_TABS).map(({ route: r, label, icon: Icon }) => (
+              <li key={r}>
+                <a
+                  href={`#/${r}`}
+                  className={`more-link ${route === r ? 'is-active' : ''}`}
+                  aria-current={route === r ? 'page' : undefined}
+                  onClick={() => setMoreOpen(false)}
+                >
+                  <Icon size={18} strokeWidth={1.6} aria-hidden="true" />
+                  <span>{label}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="rail-foot">
           <Activity size={14} aria-hidden="true" />
-          <span>v0.1 · interface preview</span>
+          <span>v0.2 · local only</span>
         </div>
       </nav>
 
