@@ -158,3 +158,13 @@ describe('durations and times in speech', () => {
     expect(whenText(new Date(2026, 10, 19, 7).getTime(), now)).toBe('tomorrow at 7:00 AM');
   });
 });
+
+describe('restart and shutdown wait for approval', () => {
+  it('recognises power requests and cancelling them', () => {
+    expect(understand('Restart my PC', now)).toEqual({ kind: 'power', mode: 'restart' });
+    expect(understand('shut down the computer', now)).toEqual({ kind: 'power', mode: 'shutdown' });
+    expect(understand('cancel the restart', now)).toEqual({ kind: 'cancel-power' });
+    expect(understand("don't shut down", now)).toEqual({ kind: 'cancel-power' });
+    expect(kind('restart the timer')).not.toBe('power');
+  });
+});

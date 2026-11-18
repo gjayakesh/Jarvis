@@ -302,6 +302,18 @@ Honest, never decorative: a dashed strong-hairline box with a 20px line icon in 
 ### Level Meter
 24 square segments, 3px apart, unlit in Hairline; lit segments are white, the top 15% are gold.
 
+### Finding Card
+A raised station (`panel-raised`, 1px hairline; medium findings take a warn-tinted border, high and critical a bad-tinted one). Header: severity status word, 17px title, and "NN% sure" in mono `text-3`; severity and confidence are never merged. Below: the plain statement (max 72ch), a two-column fact list (label in `text-2`, value in mono, then source and age in 11px mono `text-3`), possible causes with their percentages, "NEXT STEP", limitations as a hint, and the rule id + version in mono. A finding with a registered fix shows its tool as a secondary button with "Nothing changes until you approve it."
+
+### Action Card (approval)
+Same raised station; R2 actions take the warn-tinted border. Header: lifecycle status word ("Waiting for you", "Done · verified", "Undone"…), title, and the risk class in a small boxed mono tag. Body: the exact change in `text`, then AFFECTS / UNDO / WHY as a mono-labelled list, a warn-icon note when Windows will show an admin prompt, the result and the "Check:" verification line. Actions: primary "Approve and run", ghost "Decline", a mono countdown to expiry, Undo when a rollback exists, and the tool id, version and short argument hash right-aligned in mono `text-3`.
+
+### Telemetry Table and Trace
+Monitor readings are one console table (station in 11px mono caps, reading in 22px mono, source in 12px mono `text-3`), never a grid of metric cards. The trace is an SVG over 0–100% with hairline gridlines: CPU in gold, memory as a dashed `text-2` line, legend in mono.
+
+### Memory List
+Rows on hairline dividers: the fact, its state in mono caps ("waiting for you" in warn, "saved" in `text-3`), then Keep / Edit / Delete. Pending facts are italic `text-2` until approved.
+
 ### The Sun (signature)
 JARVIS itself. On Home a canvas sun sits in a gridded, ruler-edged stage with a faint warm radial wash; telemetry inputs (Voice, CPU, Memory, Disk, Network) are mono labels on the left with lines running into the sun, gold when live, grey when missing. In the top bar a 28px SVG sun breathes (3.2s) and its two dashed shells counter-rotate (14s / 9s); while the mic is live it burns faster (1.1s breathe, 5s spin). On the wake phrase the sun contracts, flares and takes the window: a full-window overlay with the sun at ~1.8fr and a gold-bracketed mono caption beside it. During a conversation the overlay docks into a bottom bar (96px sun, gold-ring border, ambient shadow) that stays until "Goodbye Jarvis", Esc or window close. The sun is the only element that moves smoothly.
 

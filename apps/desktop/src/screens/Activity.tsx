@@ -1,7 +1,10 @@
-import { CheckCircle2, ListChecks } from 'lucide-react';
-import { Empty, Panel, ScreenHeader, StatusPill } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { CheckCircle2, ListChecks, Wrench } from 'lucide-react';
+import { Button, Empty, Panel, ScreenHeader, StatusPill } from '../components/ui';
+import { ActionCard } from '../components/ActionCard';
 import { HeardLog } from '../components/HeardLog';
 import { useVoice } from '../state/useVoice';
+import { agentMissingText, onActionsChanged, proposeAction, useAgentStatus, usePoll, type ActionProposal } from '../state/agent';
 
 /** Risk classes from the spec (§12.1). */
 const RISK = [
@@ -13,15 +16,108 @@ const RISK = [
 
 export function ActivitySafety() {
   const v = useVoice();
+  const agent = useAgentStatus();
+  const online = agent.agent === 'online';
+  const audit = usePoll<{ total: number; events: { at: string; kind: string; summary: string }[] }>(online ? '/audit?limit=25' : null, 30_000);
+  const actions = usePoll<{ actions: ActionProposal[] }>(online ? '/actions?limit=20' : null, 10_000);
+  const startup = usePoll<{ entries: { name: string; kind: string; enabled: boolean }[] }>(online ? '/startup' : null, 60_000);
+  const [proposeError, setProposeError] = useState<string | null>(null);
+  const all = actions.data?.actions ?? [];
+  const isWaiting = (a: ActionProposal) => (a.status === 'AWAITING_APPROVAL' || a.status === 'AUTO_AUTHORIZED') && new Date(a.expires_at).getTime() > Date.now();
+  const waiting = all.filter(isWaiting);
+  const recent = all.filter((a) => !isWaiting(a)).slice(0, 8);
+
+  useEffect(() => onActionsChanged(() => {
+    actions.reload();
+    audit.reload();
+    startup.reload();
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const propose = async (tool: string, args: Record<string, unknown>, reason: string) => {
+    setProposeError(null);
+    try {
+      await proposeAction(tool, args, reason);
+    } catch (err) {
+      setProposeError((err as Error).message);
+    }
+  };
+
   return (
     <div className="screen">
       <ScreenHeader title="Activity & safety">Everything JARVIS is asked to change waits here for your decision, and every action is recorded.</ScreenHeader>
 
       <div className="activity-grid">
-        <Panel title="Waiting for you" meta={<span className="mono">0</span>}>
-          <Empty icon={CheckCircle2} title="Nothing needs approval">
-            When JARVIS proposes a change, you’ll see what it does, why, what it affects, how to undo it, and when the offer expires.
-          </Empty>
+        <Panel title="Waiting for you" meta={<span className="mono">{waiting.length}</span>}>
+          {waiting.length > 0 ? (
+            <div className="actions">
+              {waiting.map((a) => (
+                <ActionCard key={a.action_id} action={a} onChange={() => actions.reload()} />
+              ))}
+            </div>
+          ) : (
+            <Empty icon={CheckCircle2} title="Nothing needs approval">
+              When JARVIS proposes a change, you’ll see what it does, why, what it affects, how to undo it, and when the offer expires.
+            </Empty>
+          )}
+        </Panel>
+
+        <Panel title="Tools" meta={<Wrench size={14} aria-hidden="true" />}>
+          {online ? (
+            <>
+              <p className="muted">Start a fix yourself. Each one shows exactly what it will do and waits for your approval.</p>
+              <div className="row">
+                <Button size="sm" onClick={() => void propose('network.flush_dns_cache', {}, 'Requested from Activity & safety')}>
+                  Refresh DNS cache
+                </Button>
+                <Button size="sm" onClick={() => void propose('jarvis.clear_owned_cache', {}, 'Requested from Activity & safety')}>
+                  Delete JARVIS report files
+                </Button>
+                <Button size="sm" onClick={() => void propose('power.shutdown_restart', { mode: 'restart', delay_seconds: 60 }, 'Requested from Activity & safety')}>
+                  Restart PC (60 s)
+                </Button>
+              </div>
+              {startup.data && startup.data.entries.length > 0 && (
+                <div className="startup-list">
+                  <span className="finding-label">Your startup apps</span>
+                  <ul>
+                    {startup.data.entries.map((e) => (
+                      <li key={`${e.kind}-${e.name}`}>
+                        <span>{e.name}</span>
+                        <span className="mono muted">{e.enabled ? 'starts with Windows' : 'off'}</span>
+                        {e.enabled && (
+                          <Button size="sm" variant="ghost" onClick={() => void propose('startup.disable_entry', { name: e.name }, 'Requested from Activity & safety')}>
+                            Turn off
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="field-hint">Only your own startup items are listed; turning one off does not remove the app, and Undo turns it back on.</p>
+                </div>
+              )}
+              {proposeError && (
+                <p className="inline-error" role="alert">
+                  {proposeError}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="muted">{agentMissingText(agent)}</p>
+          )}
+        </Panel>
+
+        <Panel title="Recent actions" className="activity-log" meta={<span className="mono">{recent.length}</span>}>
+          {recent.length > 0 ? (
+            <div className="actions">
+              {recent.map((a) => (
+                <ActionCard key={a.action_id} action={a} onChange={() => actions.reload()} />
+              ))}
+            </div>
+          ) : (
+            <Empty icon={ListChecks} title="No actions yet">
+              Approved, declined and expired actions appear here with what was checked afterwards, and Undo where it exists.
+            </Empty>
+          )}
         </Panel>
 
         <Panel title="How JARVIS decides" className="risk-panel">
@@ -37,12 +133,42 @@ export function ActivitySafety() {
           </ul>
         </Panel>
 
+        <Panel title="Audit trail" className="activity-log" meta={audit.data ? <span className="mono">{audit.data.total} recorded</span> : undefined}>
+          {audit.data && audit.data.events.length > 0 ? (
+            <table className="table">
+              <caption className="visually-hidden">What the JARVIS agent did, newest first</caption>
+              <thead>
+                <tr>
+                  <th scope="col">When</th>
+                  <th scope="col">What</th>
+                  <th scope="col">Kind</th>
+                </tr>
+              </thead>
+              <tbody>
+                {audit.data.events.map((e, i) => (
+                  <tr key={i}>
+                    <td className="mono">{new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>{e.summary}</td>
+                    <td className="mono muted">{e.kind}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <Empty icon={ListChecks} title="Nothing recorded yet">
+              {agent.agent === 'online'
+                ? 'Scans, exports and AI answers are recorded here. JARVIS makes no changes to your PC in this version.'
+                : agentMissingText(agent)}
+            </Empty>
+          )}
+        </Panel>
+
         <Panel title="Voice activity" className="activity-log" meta={<span className="mono">this session</span>}>
           {v.heard.length > 0 ? (
             <HeardLog events={v.heard} />
           ) : (
-            <Empty icon={ListChecks} title="No activity yet">
-              Voice commands JARVIS answered or ignored appear here. Approvals and changes will be added once the agent is installed.
+            <Empty icon={ListChecks} title="No voice activity yet">
+              Voice commands JARVIS answered or ignored appear here.
             </Empty>
           )}
         </Panel>

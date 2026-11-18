@@ -99,11 +99,11 @@ function seedProfile() {
   writeFileSync(
     prefs,
     JSON.stringify({
-      profile: { content_settings: { exceptions: { media_stream_mic: { [site]: { setting: 1 } } } } },
+      profile: { content_settings: { exceptions: { media_stream_mic: { [site]: { setting: 1 } }, notifications: { [site]: { setting: 1 } } } } },
       browser: { has_seen_welcome_page: true },
     }),
   );
-  log('seeded JARVIS profile: microphone allowed for the JARVIS page only');
+  log('seeded JARVIS profile: microphone and notifications allowed for the JARVIS page only');
 }
 
 function launchChrome() {
@@ -255,6 +255,80 @@ function tokenOk(req) {
 }
 
 // ---------------------------------------------------------------------------
+// Diagnostic agent (apps/agent, Python FastAPI): read-only PC evidence, rules and
+// the evidence-grounded assistant. Loopback only, with its own per-launch token.
+
+const AGENT_DIR = resolve(here, '..', '..', 'agent');
+const AGENT_PY = join(AGENT_DIR, '.venv', 'Scripts', 'python.exe');
+const AGENT_PORT = 47812;
+const AGENT_TOKEN = randomBytes(24).toString('hex');
+let diag = null;
+let diagRestarts = [];
+let diagState = 'starting';
+
+function startDiagAgent() {
+  if (!existsSync(AGENT_PY)) {
+    diagState = 'not-installed';
+    log('diagnostic agent not installed (run apps\\agent\\setup-agent.ps1)');
+    return;
+  }
+  diag = spawn(AGENT_PY, ['-m', 'jarvis'], {
+    cwd: AGENT_DIR,
+    stdio: ['ignore', 'ignore', 'pipe'],
+    windowsHide: true,
+    env: { ...process.env, JARVIS_AGENT_TOKEN: AGENT_TOKEN, JARVIS_AGENT_PORT: String(AGENT_PORT), JARVIS_HOST_PID: String(process.pid), PYTHONUTF8: '1' },
+  });
+  diagState = 'starting';
+  log(`diagnostic agent started pid=${diag.pid}`);
+  diag.stderr.setEncoding('utf8');
+  diag.stderr.on('data', (d) => log(`diag: ${String(d).trim().slice(0, 300)}`));
+  diag.on('exit', (code) => {
+    log(`diagnostic agent exited code=${code}`);
+    diag = null;
+    diagState = 'offline';
+    if (quitting) return;
+    const now = Date.now();
+    diagRestarts = diagRestarts.filter((t) => now - t < 10 * 60_000);
+    if (diagRestarts.length >= 5) {
+      log('diagnostic agent keeps exiting; not restarting until JARVIS restarts');
+      return;
+    }
+    diagRestarts.push(now);
+    setTimeout(startDiagAgent, 2000 * diagRestarts.length);
+  });
+}
+
+function proxyToAgent(req, res, url) {
+  if (diagState === 'not-installed') return send(res, 503, { code: 'COLLECTOR_UNAVAILABLE', message: 'The JARVIS agent is not installed' });
+  if (!diag) return send(res, 503, { code: 'COLLECTOR_UNAVAILABLE', message: 'The JARVIS agent is not running' });
+  const headers = { authorization: `Bearer ${AGENT_TOKEN}`, host: `127.0.0.1:${AGENT_PORT}` };
+  if (req.headers['content-type']) headers['content-type'] = req.headers['content-type'];
+  if (req.headers['x-request-id']) headers['x-request-id'] = String(req.headers['x-request-id']).slice(0, 64);
+  const upstream = request(
+    { host: '127.0.0.1', port: AGENT_PORT, path: url.pathname + url.search, method: req.method, headers, timeout: 150_000 },
+    (agentRes) => {
+      diagState = 'online';
+      res.writeHead(agentRes.statusCode ?? 502, {
+        'content-type': agentRes.headers['content-type'] ?? 'application/json',
+        'cache-control': 'no-store',
+        'x-request-id': agentRes.headers['x-request-id'] ?? '',
+      });
+      agentRes.pipe(res);
+    },
+  );
+  upstream.on('timeout', () => upstream.destroy(new Error('timeout')));
+  upstream.on('error', () => {
+    if (!res.headersSent) send(res, 503, { code: 'COLLECTOR_UNAVAILABLE', message: 'The JARVIS agent is starting or not responding' });
+  });
+  let size = 0;
+  req.on('data', (chunk) => {
+    size += chunk.length;
+    if (size > 64_000) upstream.destroy(new Error('too large'));
+  });
+  req.pipe(upstream);
+}
+
+// ---------------------------------------------------------------------------
 // Voice requests like "open notepad" or "search for ...". Only this fixed list
 // of Windows programs can be started, and only https web pages opened (in the
 // user's default browser, not JARVIS's own profile). Nothing else is run.
@@ -320,6 +394,15 @@ const server = createServer(async (req, res) => {
     // Only this machine, and only our own origin, may talk to the host.
     if (req.headers.host !== `${HOST}:${PORT}`) return send(res, 421, { error: 'wrong host' });
     const url = new URL(req.url ?? '/', ORIGIN);
+
+    if (url.pathname.startsWith('/api/v1/')) {
+      // The page talks to the diagnostic agent through the host: same token and origin
+      // checks as /host, and the agent's own token never reaches the page.
+      const origin = req.headers.origin;
+      if (origin && origin !== ORIGIN) return send(res, 403, { error: 'origin' });
+      if (!tokenOk(req)) return send(res, 401, { code: 'AUTH_REQUIRED', message: 'token' });
+      return proxyToAgent(req, res, url);
+    }
 
     if (url.pathname.startsWith('/host/')) {
       if (req.method !== 'POST') return send(res, 405, { error: 'method' });
@@ -413,6 +496,14 @@ function shutdown(code) {
   } catch {
     /* already gone */
   }
+  // A venv python.exe is a launcher with the real interpreter as its child: stop the whole tree.
+  if (diag?.pid) {
+    try {
+      spawn('taskkill.exe', ['/PID', String(diag.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    } catch {
+      /* already gone */
+    }
+  }
   try {
     rmSync(STATE_FILE, { force: true });
   } catch {
@@ -445,6 +536,7 @@ server.listen(PORT, HOST, () => {
   writeFileSync(STATE_FILE, JSON.stringify({ pid: process.pid, port: PORT, token: TOKEN }), { mode: 0o600 });
   log(`host listening on ${ORIGIN} (background=${background})`);
   startAgent();
+  startDiagAgent();
   seedProfile();
   launchChrome();
 });

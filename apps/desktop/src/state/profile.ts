@@ -18,10 +18,12 @@ export interface Profile {
   keepListening: boolean;
   /** JARVIS has explained once how to end a conversation. */
   explainedGoodbye: boolean;
+  /** Show Windows notifications for timers, reminders, alarms and finished scans. */
+  notifications: boolean;
 }
 
 const KEY = 'jarvis.profile.v1';
-const DEFAULTS: Profile = { name: '', voiceURI: null, rate: 1, askedName: false, keepListening: true, explainedGoodbye: false };
+const DEFAULTS: Profile = { name: '', voiceURI: null, rate: 1, askedName: false, keepListening: true, explainedGoodbye: false, notifications: true };
 
 function load(): Profile {
   try {

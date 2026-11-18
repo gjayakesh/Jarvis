@@ -3,11 +3,13 @@ import { Shell } from './components/Shell';
 import { WakeOverlay } from './components/WakeOverlay';
 import { navigate, useRoute, type Route } from './state/router';
 import { voice } from './voice/engine';
-import { hideWindow, isWindowShown, onWindowShownChange, showWindow, startHeartbeat } from './state/platform';
+import { hideWindow, hosted, isWindowShown, onWindowShownChange, showWindow, startHeartbeat } from './state/platform';
 import type { CommandAction } from './voice/text';
-import { record } from './state/assistant';
+import { answerPcQuestion, record } from './state/assistant';
+import { getAgentStatus } from './state/agent';
 import { perform, ringText, wakeGreeting } from './state/skills';
 import { startAlerts } from './state/timers';
+import { notify } from './state/notify';
 import { getProfile } from './state/profile';
 import { takePerf } from './state/perf';
 import { Home } from './screens/Home';
@@ -63,22 +65,28 @@ export function App() {
       void showWindow();
       record(null, say);
       voice.speak(say);
+      notify(alert.kind === 'alarm' ? 'Alarm' : alert.kind === 'timer' ? 'Timer done' : 'Reminder', say, `jarvis-${alert.kind}`);
     });
     const offCommand = voice.onCommand((action, _command, text, { followUp }) => {
       if (action === 'request') {
         // Anything said after the wake phrase that is not a recorded command: answer it like a smart speaker.
         const inConversation = voice.getState().conversation;
         const outcome = perform(text);
-        if (outcome.intent.kind === 'unknown' && inConversation) {
-          // In a conversation the owner may also be talking to someone else: ignore
-          // fragments ("okay", "hmm"), and keep the "can't do that" answer short.
-          if (text.trim().split(/\s+/).length < 3) return;
-          const short = "Sorry, I can't do that yet. Try saying search for, and then your question.";
+        if (outcome.intent.kind === 'unknown') {
+          // In a conversation the owner may also be talking to someone else: ignore fragments ("okay", "hmm").
+          if (inConversation && text.trim().split(/\s+/).length < 3) return;
+          if (hosted && getAgentStatus().agent !== 'browser') {
+            // A question about the PC: the agent answers from real evidence (or says it is unavailable).
+            voice.speak('Let me check.');
+            void answerPcQuestion(text, { showUser: true }).then((say) => voice.speak(say));
+            return;
+          }
+          const short = inConversation ? "Sorry, I can't do that yet. Try saying search for, and then your question." : outcome.say;
           record(text, short, 'status');
           voice.speak(short);
           return;
         }
-        record(text, outcome.say, outcome.intent.kind === 'unknown' ? 'status' : undefined);
+        record(text, outcome.say);
         voice.speak(outcome.say, { listenAfter: outcome.listen });
         return;
       }

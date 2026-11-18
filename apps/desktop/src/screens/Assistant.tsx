@@ -2,11 +2,16 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { CornerDownLeft, Eraser, Mic, MessageSquare } from 'lucide-react';
 import { Button, Empty, Panel, ScreenHeader } from '../components/ui';
 import { clearConversation, send, useConversation } from '../state/assistant';
+import { agentMissingText, ago, useAgentStatus } from '../state/agent';
+import { useVoice } from '../state/useVoice';
+import { voice } from '../voice/engine';
 
-const SUGGESTIONS = ['What time is it?', 'Set a timer for 5 minutes', 'Tell me a joke', 'What is 18% of 2400?', 'Why is my PC slow?'];
+const SUGGESTIONS = ['Why is my PC slow?', 'Is my Wi-Fi OK?', 'Is my disk getting full?', 'Run a quick scan', 'Set a timer for 5 minutes'];
 
 export function Assistant() {
   const turns = useConversation();
+  const agent = useAgentStatus();
+  const v = useVoice();
   const [text, setText] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -38,17 +43,33 @@ export function Assistant() {
         <div className="chat-log" aria-live="polite">
           {turns.length === 0 ? (
             <Empty icon={MessageSquare} title="Start with a question">
-              JARVIS already handles everyday requests: the time, timers and reminders, quick maths, opening apps and websites. Questions
-              about your PC need the local AI, which isn’t connected yet, so it will say so instead of guessing.
+              Ask about your PC (“Why is it slow?”, “Is my Wi-Fi OK?”) and JARVIS answers from live readings and scan results, showing the
+              evidence. Everyday requests work too: the time, timers, quick maths, opening apps and websites.
             </Empty>
           ) : (
             turns.map((t) => (
-              <div key={t.id} className={`turn turn-${t.role}`}>
+              <div key={t.id} className={`turn turn-${t.role} ${t.pending ? 'is-pending' : ''}`} aria-busy={t.pending || undefined}>
                 <span className="turn-who mono">{t.role === 'user' ? 'You' : 'JARVIS'}</span>
                 <p className="turn-text">{t.text}</p>
-                {t.kind === 'status' && (
-                  <p className="turn-evidence mono">Evidence: none available · Local AI: not connected · Agent: not installed</p>
+                {t.facts && t.facts.length > 0 && (
+                  <ul className="turn-facts" aria-label="Evidence">
+                    {t.facts.slice(0, 6).map((f, i) => (
+                      <li key={i}>
+                        <span>{f.label}</span> <span className="mono">{String(f.value)}</span>{' '}
+                        <span className="turn-source mono">
+                          {f.source} · {ago(f.observed_at)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
+                {t.limitations?.map((l, i) => (
+                  <p key={i} className="turn-evidence">
+                    {l}
+                  </p>
+                ))}
+                {t.provider && <p className="turn-provider mono">{t.provider === 'rules' ? 'Explained by JARVIS rules' : `Explained by ${t.provider.replace('ollama:', '')} (local)`}</p>}
+                {t.kind === 'status' && <p className="turn-evidence mono">Evidence: none available · {agentMissingText(agent) || 'Agent: not responding'}</p>}
               </div>
             ))
           )}
@@ -70,8 +91,8 @@ export function Assistant() {
             Message JARVIS
           </label>
           <input id="chat-input" className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask JARVIS…" autoComplete="off" />
-          <Button variant="secondary" icon={Mic} disabled title="Talking to JARVIS in full sentences needs speech-to-text, which comes with the agent.">
-            Hold to talk
+          <Button variant="secondary" icon={Mic} disabled={!v.enabled || v.models !== 'ready'} onClick={() => voice.wake()} title={v.enabled ? 'Start talking, same as saying your wake phrase' : 'Turn listening on in Voice first'}>
+            Talk
           </Button>
           <button type="submit" className="btn btn-primary btn-md" disabled={!text.trim()}>
             <CornerDownLeft size={16} aria-hidden="true" />

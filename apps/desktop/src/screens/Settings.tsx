@@ -1,4 +1,5 @@
-import { AudioLines, Cloud, Cpu, Database, EyeOff, Lock, Power, MonitorSmartphone, Save, UserRound, Volume2 } from 'lucide-react';
+import { AudioLines, Brain, Cloud, Cpu, Database, EyeOff, Lock, Power, MonitorSmartphone, Save, ShieldCheck, UserRound, Volume2 } from 'lucide-react';
+import { MemorySettings, SafetySettings } from '../components/SettingsAgent';
 import { useEffect, useState, type FormEvent } from 'react';
 import { hideWindow, hosted, quitJarvis } from '../state/platform';
 import { Button, Panel, ScreenHeader, StatusPill, Toggle } from '../components/ui';
@@ -7,6 +8,7 @@ import { useVoice } from '../state/useVoice';
 import { updateProfile, useProfile } from '../state/profile';
 import { localVoices, voice } from '../voice/engine';
 import { cleanName, greeting } from '../voice/intents';
+import { agentMissingText, useAgentStatus } from '../state/agent';
 
 /** Privacy defaults from the spec (§13.3). */
 const PRIVACY = [
@@ -14,7 +16,8 @@ const PRIVACY = [
   { name: 'Background monitoring', value: 'Off until you opt in', note: 'Pause it, schedule it, or limit it on battery.' },
   { name: 'Wake phrase listening', value: 'Off by default', note: 'Separate switch, with a LIVE light while listening.' },
   { name: 'Conversation history', value: 'Kept 30 days', note: 'Clear one chat or all chats at any time.' },
-  { name: 'Long-term memory', value: 'Off', note: 'You approve, edit or delete each fact JARVIS remembers.' },
+  { name: 'Long-term memory', value: 'Off', note: 'You approve, edit or delete each fact JARVIS remembers (Memory panel above).' },
+  { name: 'Automatic safe fixes', value: 'Off', note: 'Only reversible R1 fixes; settings changes always ask you.' },
   { name: 'File contents', value: 'Off', note: 'Only files you select, for one task at a time.' },
   { name: 'Sharing diagnostics', value: 'Off', note: 'Exports hide usernames, serial numbers, paths and IP addresses.' },
 ];
@@ -23,6 +26,8 @@ export function SettingsScreen() {
   const v = useVoice();
   const wake = v.commands.find((c) => c.action === 'wake');
   const profile = useProfile();
+  const agent = useAgentStatus();
+  const model = agent.health?.model;
   return (
     <div className="screen">
       <ScreenHeader title="Settings">AI, privacy, voice and data. Private by default; nothing leaves this PC unless you decide it should.</ScreenHeader>
@@ -32,8 +37,19 @@ export function SettingsScreen() {
           <ul className="sysrows">
             <li>
               <span className="sysrow-name">Local AI (Ollama)</span>
-              <StatusPill tone="muted">Not detected</StatusPill>
-              <span className="sysrow-note">Install Ollama and a small model to let JARVIS explain findings. On 8 GB of RAM, use a model of about 3–4B parameters.</span>
+              <StatusPill tone={model?.installed ? 'ok' : 'muted'}>{!model ? 'Unknown' : model.runtime === 'offline' ? 'Not running' : model.installed ? 'Ready' : 'No model'}</StatusPill>
+              <span className="sysrow-note">
+                {model?.installed
+                  ? `${model.model} runs on this PC and explains findings from the evidence. It unloads after 3 minutes idle to free memory.`
+                  : model?.runtime === 'online'
+                    ? `Ollama is running. Download the model once: ollama pull ${model.model} (about 1 GB). Until then JARVIS answers from its own rules.`
+                    : 'Install Ollama from ollama.com to let JARVIS explain findings in plain language. On 8 GB of RAM a ~1.5B model is the comfortable size.'}
+              </span>
+            </li>
+            <li>
+              <span className="sysrow-name">JARVIS agent</span>
+              <StatusPill tone={agent.agent === 'online' ? 'ok' : 'muted'}>{agent.agent === 'online' ? `Online · v${agent.health?.version}` : 'Offline'}</StatusPill>
+              <span className="sysrow-note">{agent.agent === 'online' ? 'Reads your PC on 127.0.0.1 only, behind a per-launch key. It never changes anything.' : agentMissingText(agent)}</span>
             </li>
             <li>
               <span className="sysrow-name">Cloud AI</span>
@@ -41,7 +57,7 @@ export function SettingsScreen() {
               <span className="sysrow-note">Optional. Off until you add a provider and agree to what is shared.</span>
             </li>
           </ul>
-          <Button size="sm" icon={Cloud} disabled title="Available once the agent is installed">
+          <Button size="sm" icon={Cloud} disabled title="Cloud AI comes in a later version, with consent for exactly what is sent">
             Set up cloud AI
           </Button>
         </Panel>
@@ -71,6 +87,14 @@ export function SettingsScreen() {
 
         <Panel title="About you" meta={<UserRound size={14} aria-hidden="true" />}>
           <PersonalPanel />
+        </Panel>
+
+        <Panel title="Safety & notifications" meta={<ShieldCheck size={14} aria-hidden="true" />}>
+          <SafetySettings />
+        </Panel>
+
+        <Panel title="Memory" meta={<Brain size={14} aria-hidden="true" />}>
+          <MemorySettings />
         </Panel>
 
         <Panel title="Background" meta={<MonitorSmartphone size={14} aria-hidden="true" />}>

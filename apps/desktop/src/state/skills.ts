@@ -4,6 +4,8 @@ import { navigate } from './router';
 import { hideWindow, hosted, openApp, openUrl } from './platform';
 import { getProfile, updateProfile } from './profile';
 import { addAlert, cancelAlerts, getAlerts, type Alert } from './timers';
+import { api, getAgentStatus, proposeAction, rollbackAction, type ActionProposal } from './agent';
+import { notify } from './notify';
 
 /**
  * Carries out what the user asked for (by voice or typed) and returns what
@@ -66,6 +68,30 @@ export function perform(text: string): Outcome {
       break;
     case 'quick-scan':
       navigate('diagnostics');
+      if (getAgentStatus().agent === 'online') {
+        say = "Starting a quick health scan. It takes about half a minute; I'll show the results in Diagnostics.";
+        void api<{ session_id: string }>('/diagnostics/sessions', { method: 'POST', body: { profile: 'quick_health', reason: 'voice_request' } })
+          .then(({ session_id }) => reportWhenDone(session_id))
+          .catch(() => voice.speak('A scan is already running.'));
+      }
+      break;
+    case 'power':
+      navigate('activity');
+      if (getAgentStatus().agent === 'online') {
+        void proposeAction('power.shutdown_restart', { mode: intent.mode, delay_seconds: 60 }, 'You asked by voice').catch(() => voice.speak('I could not prepare that.'));
+      } else {
+        say = "I can't do that right now: the JARVIS agent isn't running.";
+      }
+      break;
+    case 'cancel-power':
+      say = 'Cancelling the scheduled restart.';
+      void api<{ actions: ActionProposal[] }>('/actions?limit=20')
+        .then(({ actions }) => {
+          const scheduled = actions.find((a) => a.tool_id === 'power.shutdown_restart' && a.can_rollback);
+          if (!scheduled) return voice.speak("I don't have a restart or shutdown scheduled.");
+          return rollbackAction(scheduled).then((r) => voice.speak(r.status === 'ROLLED_BACK' ? 'Cancelled. Nothing will restart.' : 'I could not cancel it. Run shutdown slash a.'));
+        })
+        .catch(() => voice.speak('I could not reach the JARVIS agent.'));
       break;
     case 'timer':
       addAlert({ kind: 'timer', label: intent.label, at: now.getTime() + intent.ms, durationMs: intent.ms });
@@ -107,6 +133,26 @@ export function perform(text: string): Outcome {
       break;
   }
   return { intent, say, listen };
+}
+
+/** Say (and notify) the result of a scan started by voice once it finishes. */
+async function reportWhenDone(sessionId: string): Promise<void> {
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => window.setTimeout(r, 3000));
+    const s = await api<{ status: string; summary: { findings?: number; by_severity?: Record<string, number> } }>(`/diagnostics/sessions/${sessionId}`).catch(() => null);
+    if (!s || s.status === 'queued' || s.status === 'running') continue;
+    const n = s.summary.findings ?? 0;
+    const serious = (s.summary.by_severity?.high ?? 0) + (s.summary.by_severity?.critical ?? 0);
+    const say =
+      s.status !== 'completed'
+        ? 'The scan could not finish.'
+        : n === 0
+          ? 'The quick health scan is done and found nothing that needs attention.'
+          : `The scan is done. I found ${n} thing${n === 1 ? '' : 's'} to look at${serious ? `, ${serious} of them serious` : ''}. The details are in Diagnostics.`;
+    voice.speak(say);
+    notify('Quick health scan finished', say, 'jarvis-scan');
+    return;
+  }
 }
 
 function describeAlerts(alerts: Alert[], now: Date): string {

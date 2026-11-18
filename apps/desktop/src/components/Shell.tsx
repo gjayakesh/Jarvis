@@ -17,7 +17,7 @@ import {
 import { navigate, type Route } from '../state/router';
 import { useVoice } from '../state/useVoice';
 import { voice, type VoiceState } from '../voice/engine';
-import { AGENT } from '../state/agent';
+import { useAgentStatus, type AgentStatus } from '../state/agent';
 import { SunMark } from './SunMark';
 import { count } from '../state/perf';
 
@@ -53,16 +53,15 @@ function useClock(): string {
   return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function tickerItems(v: VoiceState): string[] {
+function tickerItems(v: VoiceState, a: AgentStatus): string[] {
   const wake = v.commands.find((c) => c.action === 'wake');
   const items = [
     wake ? `Wake phrase: "${wake.phrase}"` : 'Wake phrase: not set',
     v.enabled ? 'Voice listening: on (this device only)' : 'Voice listening: off',
     `Voice commands: ${v.commands.filter((c) => c.action !== 'wake').length}`,
-    AGENT.agent === 'online' ? 'Agent: online' : 'Agent: not installed',
-    'Local AI: not connected',
+    a.agent === 'online' ? 'Agent: online' : a.agent === 'browser' ? 'Agent: not in browser tabs' : a.agent === 'not-installed' ? 'Agent: not installed' : 'Agent: offline',
+    a.health?.model.installed ? `Local AI: ${a.health.model.model}` : a.health?.model.runtime === 'online' ? 'Local AI: no model yet' : 'Local AI: not running',
     'Cloud AI: off',
-    'Diagnostics: no scans yet',
   ];
   const last = v.heard[0];
   if (last) {
@@ -85,7 +84,8 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
   const v = useVoice();
   const clock = useClock();
   const mic = micSummary(v);
-  const items = tickerItems(v);
+  const agentStatus = useAgentStatus();
+  const items = tickerItems(v, agentStatus);
   const micOn = v.enabled && v.status === 'listening';
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = NAV.slice(PHONE_TABS).some((n) => n.route === route);

@@ -6,6 +6,8 @@
 const token = document.querySelector<HTMLMetaElement>('meta[name="jarvis-host-token"]')?.content ?? null;
 
 export const hosted = token !== null;
+/** Per-launch host token, for calls the host relays to the JARVIS agent. */
+export const hostToken = token;
 
 /**
  * Whether the JARVIS window is actually on screen. Chrome is told to keep this

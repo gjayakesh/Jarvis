@@ -27,6 +27,8 @@ export type Intent =
   | { kind: 'reminder'; at: number; text: string }
   | { kind: 'alarm'; at: number }
   | { kind: 'ask'; question: 'timer' | 'alarm' | 'reminder' }
+  | { kind: 'power'; mode: 'restart' | 'shutdown' }
+  | { kind: 'cancel-power' }
   | { kind: 'cancel-timers' }
   | { kind: 'list-timers' }
   | { kind: 'math'; expression: string; result: number }
@@ -282,6 +284,11 @@ export function understand(text: string, now: Date = new Date()): Intent {
   }
   if (/\b(?:whats my name|what is my name|who am i|do you know my name|do you know who i am)\b/.test(t)) return { kind: 'get-name' };
 
+  // Restart / shutdown are never done directly: they become an action that waits for approval.
+  if (/\b(?:cancel|stop|abort|don ?t)\b.*\b(?:restart|reboot|shut ?down|shutting down|restarting)\b/.test(t)) return { kind: 'cancel-power' };
+  const power = t.match(/^(?:restart|reboot|shut ?down|turn off)(?: my| the)? (?:pc|computer|laptop|system)$/);
+  if (power) return { kind: 'power', mode: /restart|reboot/.test(power[0]) ? 'restart' : 'shutdown' };
+
   // Timers, reminders and alarms (before "time").
   if (/\b(?:cancel|stop|delete|clear|remove|turn off)\b.*\b(?:timers?|reminders?|alarms?)\b/.test(t)) return { kind: 'cancel-timers' };
   if (/\b(?:how much time|how long)\b.*\b(?:left|remaining)\b|\b(?:what|any|check|show|list)( my)? (?:timers|reminders|alarms)\b/.test(t))
@@ -492,6 +499,10 @@ export function reply(intent: Intent, { name, now, rand = Math.random, canOpenAp
       return { say: 'Okay, cancelled.' }; // the app says how many
     case 'list-timers':
       return { say: "Here's what's running." }; // the app lists them
+    case 'power':
+      return { say: `I've prepared a ${intent.mode}. Check the details in Activity and safety and approve it if you want it.` };
+    case 'cancel-power':
+      return { say: 'Cancelling it.' };
     case 'joke':
       return { say: pick(JOKES, rand) };
     case 'coin':
