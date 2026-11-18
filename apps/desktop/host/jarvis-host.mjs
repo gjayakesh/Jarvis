@@ -344,6 +344,78 @@ const APPS = {
   paint: [join(WINDIR, 'System32', 'mspaint.exe')],
 };
 
+// Any app in the user's Start menu, by name ("open Microsoft Store", "open clock").
+// Only entries Windows itself lists (Get-StartApps) can be started, through the shell's
+// AppsFolder, exactly like clicking them in Start. The list is cached and refreshed on a miss.
+let startApps = { at: 0, list: [] };
+let startAppsLoading = null;
+
+function loadStartApps() {
+  if (startAppsLoading) return startAppsLoading;
+  startAppsLoading = new Promise((done) => {
+    const ps = spawn(
+      join(WINDIR, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+      ['-NoProfile', '-NonInteractive', '-Command', 'Get-StartApps | Select-Object Name, AppID | ConvertTo-Json -Compress'],
+      { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    let out = '';
+    ps.stdout.on('data', (c) => (out += c));
+    ps.on('error', () => done(startApps.list));
+    ps.on('close', () => {
+      try {
+        const parsed = JSON.parse(out);
+        const list = (Array.isArray(parsed) ? parsed : [parsed])
+          .filter((a) => a && typeof a.Name === 'string' && typeof a.AppID === 'string')
+          .filter((a) => !/\b(?:uninstall|setup|installer|repair|reset|readme|help|documentation|release notes)\b/i.test(a.Name))
+          .map((a) => ({ name: a.Name, id: a.AppID, key: words(a.Name) }));
+        startApps = { at: Date.now(), list };
+        log(`start menu apps loaded: ${list.length}`);
+      } catch {
+        log('start menu apps: could not read the list');
+      }
+      startAppsLoading = null;
+      done(startApps.list);
+    });
+  });
+  return startAppsLoading;
+}
+
+const words = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Best Start menu match for what the user said, or null. Exact name first, then whole words. */
+// Spoken nicknames for a few apps whose Start menu name is different.
+const NICKNAMES = { 'vs code': 'visual studio code', vscode: 'visual studio code', code: 'visual studio code', store: 'microsoft store', 'app store': 'microsoft store', edge: 'microsoft edge', teams: 'microsoft teams', alarms: 'clock', alarm: 'clock' };
+
+function matchStartApp(list, spoken, exactOnly = false) {
+  spoken = NICKNAMES[words(spoken)] ?? spoken;
+  const q = words(spoken).replace(/^(?:the|my|microsoft|windows) /, '');
+  if (!q) return null;
+  const qs = [q, words(spoken)];
+  const exact = list.find((a) => qs.includes(a.key) || qs.includes(a.key.replace(/^(?:microsoft|windows|google) /, '')));
+  if (exact || exactOnly) return exact ?? null;
+  const parts = q.split(' ');
+  const hits = list.filter((a) => {
+    const name = ` ${a.key} `;
+    return parts.every((p) => name.includes(` ${p} `));
+  });
+  // Shortest name wins: "chrome" -> "Google Chrome", not "Chrome Remote Desktop".
+  hits.sort((a, b) => a.key.length - b.key.length);
+  return hits[0] ?? null;
+}
+
+async function openInstalled(name, exactOnly) {
+  let list = startApps.list;
+  if (!list.length || Date.now() - startApps.at > 30 * 60_000) list = await loadStartApps();
+  let app = matchStartApp(list, name, exactOnly);
+  if (!app && !exactOnly && Date.now() - startApps.at > 60_000) app = matchStartApp(await loadStartApps(), name);
+  if (!app) return null;
+  if (/["\r\n]/.test(app.id)) return null;
+  const child = spawn(join(WINDIR, 'explorer.exe'), [`shell:AppsFolder\\${app.id}`], { detached: true, stdio: 'ignore' });
+  child.on('error', (e) => log(`open failed: ${e.message}`));
+  child.unref();
+  return app.name;
+}
+
 function openFor(body) {
   let argv;
   if (typeof body.app === 'string' && Object.hasOwn(APPS, body.app)) {
@@ -435,6 +507,17 @@ const server = createServer(async (req, res) => {
             log(`hide on start -> ${await windowCommand('hide')}`);
           }
           return send(res, 200, { ok: true, window: lastBeat.window });
+        }
+        case '/host/open-installed': {
+          // Spoken app name: letters, digits and a little punctuation only.
+          const name = typeof body.name === 'string' ? body.name.trim() : '';
+          if (!/^[\p{L}\p{N} .&+'-]{1,60}$/u.test(name)) return send(res, 400, { result: 'bad name' });
+          const opened = await openInstalled(name, typeof body.fallbackUrl === 'string');
+          let result = opened ? 'ok' : 'not found';
+          // Not installed but a known website ("open WhatsApp" without the app): open the site.
+          if (!opened && typeof body.fallbackUrl === 'string') result = openFor({ url: body.fallbackUrl });
+          log(`open installed ${JSON.stringify(name)} -> ${opened ?? result}`);
+          return send(res, result === 'ok' ? 200 : 404, { result, opened: opened ?? null });
         }
         case '/host/open': {
           const result = openFor(body);
@@ -539,4 +622,6 @@ server.listen(PORT, HOST, () => {
   startDiagAgent();
   seedProfile();
   launchChrome();
+  // Learn the Start menu apps once things have settled, so the first "open ..." is quick.
+  setTimeout(() => void loadStartApps(), 60_000);
 });

@@ -44,29 +44,43 @@ class ModelUnavailable(RuntimeError):
     pass
 
 
-# One fixed context size, so the model is never reloaded between questions. The model runs on
-# the GPU here (its weights sit in video memory), so keeping it loaded costs little system RAM.
+# One fixed context size, so the model is never reloaded between questions. Even on the GPU the
+# loaded model reserves about 2 GB of the PC's committed memory (measured on the 8 GB dev PC), so
+# it is loaded when JARVIS is woken (warm), and freed on goodbye or after 2 idle minutes.
 OPTIONS = {"temperature": 0.2, "num_ctx": 1024, "num_predict": 200}
-KEEP_ALIVE = "30m"
+KEEP_ALIVE = "2m"
 
 
-def _payload(system: str, user: str, stream: bool) -> dict[str, Any]:
+def set_loaded(loaded: bool) -> None:
+    """Load the model ahead of the first question, or free its memory now. Best effort, quick."""
+    st = status()
+    if st["runtime"] != "online" or not st["installed"]:
+        return
+    payload = {"model": model_name(), "prompt": "", "keep_alive": KEEP_ALIVE if loaded else 0, "options": OPTIONS}
+    try:
+        httpx.post(f"{settings.ollama_url}/api/generate", json=payload, timeout=60.0 if loaded else 5.0)
+    except httpx.HTTPError:
+        pass
+
+
+def _payload(system: str, user: str, stream: bool, temperature: float | None = None) -> dict[str, Any]:
     return {
         "model": model_name(),
         "stream": stream,
         "keep_alive": KEEP_ALIVE,
-        "options": OPTIONS,
+        # Same context size always (no reload); only how adventurous the wording is changes.
+        "options": OPTIONS if temperature is None else {**OPTIONS, "temperature": temperature},
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
 
 
-def chat_stream(system: str, user: str, *, first_piece_timeout: float = 40.0, timeout: float = 120.0):
+def chat_stream(system: str, user: str, *, first_piece_timeout: float = 40.0, timeout: float = 120.0, temperature: float | None = None):
     """Yield the reply in pieces as the model writes it (spec §9.4 assistant.delta)."""
     import json
 
     try:
         # read= bounds the wait for each piece; the first one includes loading the model.
-        with httpx.stream("POST", f"{settings.ollama_url}/api/chat", json=_payload(system, user, True), timeout=httpx.Timeout(timeout, connect=2.0, read=first_piece_timeout)) as r:
+        with httpx.stream("POST", f"{settings.ollama_url}/api/chat", json=_payload(system, user, True, temperature), timeout=httpx.Timeout(timeout, connect=2.0, read=first_piece_timeout)) as r:
             r.raise_for_status()
             for line in r.iter_lines():
                 if not line:

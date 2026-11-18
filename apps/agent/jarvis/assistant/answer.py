@@ -28,7 +28,7 @@ TOPICS: list[tuple[str, re.Pattern[str]]] = [
     ("slow_pc", re.compile(r"\b(slow|lag|laggy|sluggish|freez|hang|stutter|performance|fast)", re.I)),
     ("memory", re.compile(r"\b(memory|ram)\b", re.I)),
     ("cpu", re.compile(r"\b(cpu|processor)\b", re.I)),
-    ("storage", re.compile(r"\b(disk|drive|storage|space|ssd|hdd)\b", re.I)),
+    ("storage", re.compile(r"\b(disks?|discs?|drives?|storage|ssd|hdd|(?:disk|free|storage|drive) space|space (?:left|on))\b", re.I)),
     ("network", re.compile(r"\b(wi-?fi|internet|network|connection|dns|router|online|ping)\b", re.I)),
     ("stability", re.compile(r"\b(crash|blue ?screen|bsod|restart|shut ?down|reboot|error)\b", re.I)),
     ("gpu", re.compile(r"\b(gpu|graphics|video card|nvidia|temperature|temp|hot|overheat\w*|heating|fan)\b", re.I)),
@@ -36,7 +36,27 @@ TOPICS: list[tuple[str, re.Pattern[str]]] = [
     ("security", re.compile(r"\b(virus|malware|defender|firewall|secure|security|hack)\b", re.I)),
     ("update", re.compile(r"\b(update|windows update|patch)\b", re.I)),
     ("audio", re.compile(r"\b(sound|audio|speaker|microphone|volume)\b", re.I)),
+    ("apps", re.compile(r"\b(apps?|applications?|programs?|processes|process|running in (?:the )?background|background apps?|task manager)\b", re.I)),
 ]
+
+# Questions that are not about this PC go to conversation, not to the health check.
+CHAT_PROMPT = """You are JARVIS, a warm, witty voice assistant that lives on its owner's Windows PC.
+Talk like a friendly person: answer the question or keep the conversation going.
+You are good at small talk, fun facts, short stories, jokes, riddles, encouragement, simple advice and general knowledge.
+If the owner is bored or asks you to say something, share a surprising fun fact or a tiny story right away instead of asking them.
+Rules you must follow:
+- Reply in at most 3 short sentences of plain spoken English: no lists, no markdown, no emojis.
+- You cannot see the screen, files, messages, calendar or the internet. Never claim you did something you cannot do.
+- Never state facts about this PC (usage, apps, temperatures, problems). If the owner asks about the PC, say they can ask about memory, the processor, the disk, the network, running apps or the graphics card.
+- If asked to do something you cannot do, say so kindly and mention what you can: open apps and websites, search the web, play music on YouTube, set timers, alarms and reminders, tell the time and date, do maths, tell jokes, and check the PC.
+- Never write commands, code or scripts."""
+
+CHAT_FALLBACK = (
+    "I'm not sure how to help with that yet. I can open apps and websites, search the web, set timers, "
+    "alarms and reminders, do quick maths, tell jokes, and check how your PC is doing."
+)
+PC_WORDS = re.compile(r"\b(pc|computer|laptop|system|machine|windows|health|healthy|status|working (?:ok|fine|properly))\b", re.I)
+PC_CLAIM = re.compile(r"\b\d+(?:\.\d+)?\s?(?:%|percent|gb|mb|°c|degrees)\b|\byour (?:cpu|memory|ram|disk|gpu) (?:is|usage|use)\b", re.I)
 
 SYSTEM_PROMPT = """You are JARVIS, a calm, friendly assistant that explains a Windows PC's health to its owner.
 You are given MEASURED FACTS and a DRAFT ANSWER that JARVIS's rules already checked. Rewrite the draft so it sounds natural when spoken.
@@ -83,9 +103,72 @@ def grounded(reply: str, sources: str) -> bool:
 FORBIDDEN = re.compile(r"(```|\b(powershell|cmd(\.exe)?|reg (add|delete)|sc (stop|config)|net stop|taskkill|rm -rf|del /|format [a-z]:)\b)", re.I)
 
 
+def _history(conversation_id: str, limit: int = 6) -> list[tuple[str, str]]:
+    """The last few turns of this conversation, oldest first, so follow-ups make sense."""
+    with db.session() as s:
+        rows = s.scalars(
+            select(db.ConversationTurn).where(db.ConversationTurn.conversation_id == conversation_id).order_by(db.ConversationTurn.created_at.desc()).limit(limit)
+        ).all()
+        return [(r.role, r.text) for r in reversed(rows)]
+
+
+def _repeats(reply: str, earlier: list[str]) -> bool:
+    """True when the reply is (nearly) one JARVIS already gave in this conversation."""
+    from difflib import SequenceMatcher
+
+    return any(SequenceMatcher(None, reply.lower(), e.lower()).ratio() > 0.8 for e in earlier)
+
+
+def _chat_events(text: str, conversation_id: str, started: float):
+    """A friendly conversational reply from the local AI, with no claims about the PC."""
+    limitations: list[str] = []
+    reply = None
+    provider = "rules"
+    st = ollama.status()
+    if st["runtime"] == "online" and st["installed"]:
+        history = _history(conversation_id, limit=4)
+        said_before = [t for role, t in history if role != "user"]
+        past = "\n".join(f"{'Owner' if role == 'user' else 'JARVIS'}: {redact(t)}" for role, t in history)
+        # Small models tend to copy their last reply; if that happens, ask again without the history.
+        for attempt, with_history in enumerate((True, False)):
+            prompt = (f"Conversation so far:\n{past}\n\n" if past and with_history else "") + f"Owner: {text}\nJARVIS:"
+            written = ""
+            try:
+                for piece in ollama.chat_stream(CHAT_PROMPT, prompt, first_piece_timeout=30.0, temperature=0.8):
+                    written += piece
+                    if FORBIDDEN.search(written):
+                        break
+                    yield "delta", piece
+            except ollama.ModelUnavailable:
+                limitations.append("The local AI took too long to answer.")
+                if written:
+                    yield "replace", ""
+                reply = None
+                break
+            reply = written.strip().removeprefix("JARVIS:").strip()
+            provider = f"ollama:{st['model']}"
+            # The second try is kept even if it repeats: the same question can deserve the same answer.
+            if reply and not FORBIDDEN.search(reply) and not PC_CLAIM.search(reply) and (attempt == 1 or not _repeats(reply, said_before)):
+                break
+            # Commands, made-up PC readings or a repeat: never pass it on.
+            yield "replace", ""
+            repeated = bool(reply) and _repeats(reply, said_before)
+            reply, provider = None, "rules"
+            if not repeated or attempt == 1:
+                break
+    else:
+        limitations.append("The local AI (Ollama) is not running, so JARVIS can only handle its built-in requests.")
+    if not reply:
+        reply = CHAT_FALLBACK
+        yield "delta", reply
+    result = {"answer": reply, "facts": [], "hypotheses": [], "limitations": limitations, "suggested_actions": [], "provider": provider, "ms": round((time.monotonic() - started) * 1000)}
+    yield "done", _record(conversation_id, text, result, topics=["chat"])
+
+
 def classify(text: str) -> list[str]:
     topics = [name for name, pat in TOPICS if pat.search(text)]
-    return topics or ["general"]
+    # "How is my PC?" is a health question; anything else without a PC topic is conversation.
+    return topics or (["general"] if PC_WORDS.search(text) else ["chat"])
 
 
 def _latest_findings(max_age: timedelta) -> tuple[list[dict[str, Any]], str | None]:
@@ -131,6 +214,7 @@ def _fresh_context(symptom: str | None) -> tuple[dict[str, Any], list[dict[str, 
         "top_processes": [{"name": p["name"], "cpu_percent": p.get("cpu_percent"), "memory": gb(p.get("memory_bytes"))} for p in top],
         "top_memory": [{"name": app_name(p["name"]), "memory": gb(p.get("memory_bytes"))} for p in sorted(apps, key=lambda r: r.get("memory_bytes", 0), reverse=True)[:3]],
         "system_drive": sys_vol,
+        "app_count": len(apps),
         "network": system.network_interfaces(),
     }
     facts = [
@@ -166,6 +250,16 @@ def _topic_answer(topics: list[str], snapshot: dict[str, Any]) -> str | None:
             f"well below the {slow:.0f} \u00b0C where it starts slowing down" if slow and temp is not None and temp < slow - 15 else
             f"close to the {slow:.0f} \u00b0C where it starts slowing down" if slow else "")
         return f"Your {g.get('name')} is at {temp:.0f} \u00b0C, {state}. It is {g.get('utilization_percent', 0):.0f}% busy, using {g.get('memory_used_mb', 0):.0f} of {g.get('memory_total_mb', 0):.0f} MB of video memory."
+    if "apps" in topics and set(topics) <= {"apps", "memory", "cpu"}:
+        heavy = snapshot.get("top_memory", [])
+        busy = [p for p in snapshot.get("top_processes", []) if (p.get("cpu_percent") or 0) >= 5]
+        if not heavy:
+            return "I couldn't read the running apps just now."
+        names = ", ".join(f"{p['name']} ({p['memory']})" for p in heavy)
+        text = f"{snapshot.get('app_count', len(heavy))} apps are running. The ones using the most memory are {names}."
+        if busy:
+            text += f" {app_name(busy[0]['name'])} is the busiest, at {busy[0]['cpu_percent']:.0f}% CPU."
+        return text + " Task Manager shows the full list."
     if "network" in topics:
         virtual = re.compile(r"(?i)^(vethernet|local area connection\*|bluetooth|loopback|vmware|virtualbox|hyper-v)")
         up = [n["name"] for n in snapshot.get("network", []) if n.get("is_up") and not virtual.match(n["name"])]
@@ -236,12 +330,15 @@ def answer_events(text: str, conversation_id: str | None = None):
         yield "done", _record(conversation_id, text, {"answer": remembered, "facts": [], "hypotheses": [], "limitations": [], "suggested_actions": [], "provider": "rules", "ms": round((time.monotonic() - started) * 1000)})
         return
     topics = classify(text)
+    if topics == ["chat"]:
+        yield from _chat_events(text, conversation_id, started)
+        return
     symptom = "slow_pc" if "slow_pc" in topics else None
     ctx, live = _fresh_context(symptom)
     stored, scan_at = _latest_findings(timedelta(hours=6))
     findings = live + [f for f in stored if f["rule"] not in {x["rule"] for x in live}]
     if topics != ["general"]:
-        wanted = {"slow_pc": {"cpu", "memory", "storage"}, "memory": {"memory"}, "cpu": {"cpu"}, "storage": {"storage"}, "network": {"network"}, "stability": {"stability", "hardware", "drivers", "gpu"}, "battery": {"power"}, "security": {"security"}, "update": {"windows_update"}, "audio": {"audio"}}
+        wanted = {"slow_pc": {"cpu", "memory", "storage"}, "memory": {"memory"}, "cpu": {"cpu"}, "storage": {"storage"}, "network": {"network"}, "stability": {"stability", "hardware", "drivers", "gpu"}, "battery": {"power"}, "security": {"security"}, "update": {"windows_update"}, "audio": {"audio"}, "apps": {"cpu", "memory"}}
         cats = set().union(*(wanted.get(t, set()) for t in topics))
         prefix = {"memory": "D-MEM", "cpu": "D-CPU", "storage": "D-DISK", "network": "D-NET", "stability": "D-EVT", "hardware": "D-EVT-03", "drivers": "D-DRV", "gpu": "D-GPU", "power": "D-BATT", "security": "D-SEC", "windows_update": "D-UPD", "audio": "D-AUD"}
         focused = [f for f in findings if any(f["rule"].startswith(prefix[c]) for c in cats if c in prefix)]

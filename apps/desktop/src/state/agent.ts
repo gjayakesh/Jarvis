@@ -121,6 +121,15 @@ export class AgentError extends Error {
   }
 }
 
+/**
+ * Load the local AI when JARVIS is woken and free its memory (about 2 GB) on goodbye, so it
+ * is not held while nobody is talking to JARVIS. Fire and forget.
+ */
+export function setModelLoaded(loaded: boolean): void {
+  if (getAgentStatus().agent !== 'online') return;
+  void api(`/assistant/model?state=${loaded ? 'warm' : 'unload'}`, { method: 'POST' }).catch(() => undefined);
+}
+
 export async function api<T>(path: string, init: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
   if (!hosted) throw new AgentError('NOT_HOSTED', 'JARVIS is running in a browser tab, without its agent.', 0);
   const ctrl = new AbortController();

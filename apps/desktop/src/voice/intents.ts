@@ -39,10 +39,14 @@ export type Intent =
   | { kind: 'quick-scan' }
   | { kind: 'open-app'; app: AppId; label: string }
   | { kind: 'open-url'; url: string; label: string }
+  /** Any app in the Start menu, matched by name on the PC (a known website is the fallback). */
+  | { kind: 'open-installed'; name: string; label: string; fallbackUrl?: string }
   | { kind: 'search'; query: string }
   | { kind: 'play'; query: string }
   | { kind: 'weather'; query: string }
   | { kind: 'unknown'; text: string };
+
+const CLOCK_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
 /**
  * Lowercase words, keeping digits with their decimal point or clock colon
@@ -52,6 +56,7 @@ export function prep(text: string): string {
   return text
     .toLowerCase()
     .replace(/[’']/g, '')
+    .replace(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve) o ?clock\b/g, (_m, h: string) => String(/^\d/.test(h) ? Number(h) : CLOCK_WORDS.indexOf(h) + 1))
     .replace(/(\d),(?=\d{3})/g, '$1')
     .replace(/(\d)\s*[x×*]\s*(\d)/g, '$1 times $2')
     .replace(/[×*]/g, ' times ')
@@ -72,7 +77,7 @@ function strip(t: string): string {
   let s = t;
   for (let i = 0; i < 3; i++) {
     s = s
-      .replace(/^(hey |ok |okay |so |um |uh |and )?(jarvis )?/, '')
+      .replace(/^(hey |ok |okay |so |um |uh |and |then |now |alright |all right |well )?(jarvis )?/, '')
       .replace(/^(can you |could you |would you |will you |please |i want you to |id like you to |i need you to )+/, '')
       .replace(/^(please )/, '')
       .replace(/( please| jarvis| for me| now)+$/, '')
@@ -254,6 +259,8 @@ const SITES: [RegExp, string, string][] = [
 export const searchUrl = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 export const youtubeUrl = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
+const titleCase = (s: string) => s.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+
 /** "jayakesh", "j k" -> "Jayakesh", "J K". Letters only, up to three words. */
 export function cleanName(raw: string): string {
   return raw
@@ -282,7 +289,7 @@ export function understand(text: string, now: Date = new Date()): Intent {
     const clean = cleanName(name[1].replace(/\b(?:from now on|instead|please)\b/g, ''));
     if (clean) return { kind: 'set-name', name: clean };
   }
-  if (/\b(?:whats my name|what is my name|who am i|do you know my name|do you know who i am)\b/.test(t)) return { kind: 'get-name' };
+  if (/\b(?:whats my name|what is my name|who am i|do you know my name|do you know who i am|tell me my name|say my name)\b/.test(t)) return { kind: 'get-name' };
 
   // Restart / shutdown are never done directly: they become an action that waits for approval.
   if (/\b(?:cancel|stop|abort|don ?t)\b.*\b(?:restart|reboot|shut ?down|shutting down|restarting)\b/.test(t)) return { kind: 'cancel-power' };
@@ -294,13 +301,14 @@ export function understand(text: string, now: Date = new Date()): Intent {
   if (/\b(?:how much time|how long)\b.*\b(?:left|remaining)\b|\b(?:what|any|check|show|list)( my)? (?:timers|reminders|alarms)\b/.test(t))
     return { kind: 'list-timers' };
   // "remind me in 10 minutes to stretch" or "remind me to stretch in 10 minutes" (the last "in"/"at" wins).
-  const lead = t.match(/^remind me (in|at) (.+?) (?:to|about) (.+)$/);
-  const tail = lead ? null : t.match(/^remind me (?:to |about )?(.+) (in|at) (.+)$/);
+  const r = t.replace(/^(?:set|create|add|make) (?:a |me a )?reminder (?:for |at )?/, 'remind me at ').replace(/^remind me at (in|at) /, 'remind me $1 ');
+  const lead = r.match(/^remind me (in|at|of|by|for|on) (.+?) (?:to|about|of) (.+)$/);
+  const tail = lead ? null : r.match(/^remind me (?:to |about |of )?(.+) (in|at|by) (.+)$/);
   const remind = lead ? { what: lead[3], when: lead[1], how: lead[2] } : tail ? { what: tail[1], when: tail[2], how: tail[3] } : null;
   if (remind) {
     const { what, when, how } = remind;
-    const ms = when === 'in' ? parseDuration(how) : null;
-    const at = when === 'in' ? (ms ? now.getTime() + ms : null) : parseClock(how, now);
+    const ms = when === 'in' || when === 'for' ? parseDuration(how) : null;
+    const at = ms ? now.getTime() + ms : when === 'in' ? null : parseClock(how, now);
     if (at && at > now.getTime()) return { kind: 'reminder', at, text: what.replace(/^to /, '') };
   }
   if (/\balarm\b|\bwake me\b/.test(t)) {
@@ -330,7 +338,7 @@ export function understand(text: string, now: Date = new Date()): Intent {
   }
   if (/\btimer\b/.test(t)) return { kind: 'ask', question: 'timer' };
   if (/\balarm\b/.test(t)) return { kind: 'ask', question: 'alarm' };
-  if (/^remind me\b/.test(t)) return { kind: 'ask', question: 'reminder' };
+  if (/^remind me\b|^(?:set|create|add) (?:a )?reminder\b/.test(t)) return { kind: 'ask', question: 'reminder' };
 
   const math = parseMath(t);
   if (math) return { kind: 'math', ...math };
@@ -345,6 +353,10 @@ export function understand(text: string, now: Date = new Date()): Intent {
   if (/\broll (?:a |the )?(?:die|dice)\b/.test(t)) return { kind: 'dice' };
   if (/\b(?:quick scan|scan my (?:pc|computer|system)|run a scan|start a scan|check my (?:pc|computer))\b/.test(t)) return { kind: 'quick-scan' };
 
+  const thenSearch = t.match(/^(?:open|launch|start|go to)(?: up)? .+? (?:and |then )+(?:search|look up|google|find)(?: for)? (.+)$/);
+  if (thenSearch) return { kind: 'search', query: thenSearch[1].replace(/ on (?:google|the web|the internet)$/, '') };
+  const thenPlay = t.match(/^(?:open|launch|start|go to)(?: up)? .+? (?:and |then )+play (.+?)(?: on youtube)?$/);
+  if (thenPlay) return { kind: 'play', query: thenPlay[1] };
   const play = t.match(/^play (.+?)(?: on youtube)?$/);
   if (play) return { kind: 'play', query: play[1] };
   const search = t.match(/^(?:search|google|look up|search for|search the web for|search google for|search online for|find)(?: for)? (.+)$/);
@@ -359,7 +371,10 @@ export function understand(text: string, now: Date = new Date()): Intent {
     const app = APPS.find(([re]) => re.test(target));
     if (app) return { kind: 'open-app', app: app[1], label: app[2] };
     const site = SITES.find(([re]) => re.test(target.replace(/ (?:com|org|in|co in|co uk)$/, '')));
-    if (site) return { kind: 'open-url', url: site[1], label: site[2] };
+    // A known site: its installed app if one has exactly that name (WhatsApp, Spotify), else the website.
+    if (site) return { kind: 'open-installed', name: target, label: site[2], fallbackUrl: site[1] };
+    if (/^[a-z0-9][a-z0-9 .&+-]{0,58}$/.test(target) && !/^(?:it|that|this|them|something|anything)$/.test(target))
+      return { kind: 'open-installed', name: target, label: titleCase(target) };
   }
 
   if (/\b(?:good ?night|going to bed|off to bed)\b/.test(t)) return { kind: 'good-night' };
@@ -517,6 +532,10 @@ export function reply(intent: Intent, { name, now, rand = Math.random, canOpenAp
       return canOpenApps ? { say: `Opening ${intent.label}.` } : { say: `I can open ${intent.label} once I'm running in background mode. Right now I'm just a browser tab.` };
     case 'open-url':
       return { say: `Opening ${intent.label}.` };
+    case 'open-installed':
+      return canOpenApps || intent.fallbackUrl
+        ? { say: `Opening ${intent.label}.` }
+        : { say: `I can open ${intent.label} once I'm running in background mode. Right now I'm just a browser tab.` };
     case 'search':
       return { say: `Here's what I found for ${intent.query}.` };
     case 'play':

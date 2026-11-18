@@ -6,7 +6,7 @@ import { voice } from './voice/engine';
 import { hideWindow, hosted, isWindowShown, onWindowShownChange, showWindow, startHeartbeat } from './state/platform';
 import type { CommandAction } from './voice/text';
 import { answerPcQuestion, record } from './state/assistant';
-import { getAgentStatus } from './state/agent';
+import { getAgentStatus, setModelLoaded } from './state/agent';
 import { perform, ringText, wakeGreeting } from './state/skills';
 import { startAlerts } from './state/timers';
 import { notify } from './state/notify';
@@ -76,8 +76,7 @@ export function App() {
           // In a conversation the owner may also be talking to someone else: ignore fragments ("okay", "hmm").
           if (inConversation && text.trim().split(/\s+/).length < 3) return;
           if (hosted && getAgentStatus().agent !== 'browser') {
-            // A question about the PC: the agent answers from real evidence (or says it is unavailable).
-            voice.speak('Let me check.');
+            // Anything else: the agent answers PC questions from real evidence and chats about the rest.
             void answerPcQuestion(text, { showUser: true }).then((say) => voice.speak(say));
             return;
           }
@@ -91,6 +90,7 @@ export function App() {
         return;
       }
       if (action === 'wake') {
+        setModelLoaded(true);
         void showWindow();
         setPulseKey((k) => k + 1);
         // "Hey Jarvis, what time is it": skip the greeting and just answer.
@@ -105,7 +105,10 @@ export function App() {
       voice.speak(response.say(name ? `, ${name}` : ''));
       // Outside a conversation a command ends the listening window; inside one, JARVIS keeps listening.
       if (action !== 'stop-listening' && !voice.getState().conversation) voice.sleep();
-      if (action === 'hide-jarvis') window.setTimeout(() => void hideWindow(), 2600);
+      if (action === 'hide-jarvis') {
+        setModelLoaded(false);
+        window.setTimeout(() => void hideWindow(), 2600);
+      }
     });
     return () => {
       offCommand();

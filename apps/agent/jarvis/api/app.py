@@ -292,6 +292,15 @@ def _sse(event: str, data: Any, event_id: int | None = None) -> str:
     return f"{head}event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
+@app.post("/api/v1/assistant/model", dependencies=[api])
+def assistant_model(state: Literal["warm", "unload"] = Query(...)) -> dict[str, Any]:
+    """Load the local AI when JARVIS is woken, free its memory on goodbye (runs in the background)."""
+    import threading
+
+    threading.Thread(target=ollama.set_loaded, args=(state == "warm",), daemon=True).start()
+    return {"state": state}
+
+
 @app.post("/api/v1/assistant/turns", dependencies=[api])
 def assistant_turn(body: Turn, stream: bool = Query(False)):
     """Answer a question. With ?stream=1 the answer arrives as SSE: assistant.delta pieces,

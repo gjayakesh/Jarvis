@@ -91,9 +91,30 @@ describe('understanding everyday requests', () => {
     expect(understand('open settings', now)).toEqual({ kind: 'open-screen', screen: 'settings' });
     expect(understand('show me the monitor', now)).toEqual({ kind: 'open-screen', screen: 'monitor' });
     expect(understand('go home', now)).toEqual({ kind: 'open-screen', screen: 'home' });
-    expect(understand('Open YouTube.', now)).toMatchObject({ kind: 'open-url', url: 'https://www.youtube.com/' });
-    expect(understand('open youtube.com', now)).toMatchObject({ kind: 'open-url', label: 'YouTube' });
-    expect(understand('open gmail', now)).toMatchObject({ kind: 'open-url', label: 'Gmail' });
+    expect(understand('Open YouTube.', now)).toMatchObject({ kind: 'open-installed', fallbackUrl: 'https://www.youtube.com/' });
+    expect(understand('open youtube.com', now)).toMatchObject({ kind: 'open-installed', label: 'YouTube' });
+    expect(understand('open gmail', now)).toMatchObject({ kind: 'open-installed', label: 'Gmail', fallbackUrl: 'https://mail.google.com/' });
+  });
+
+  it('opens any installed app by name', () => {
+    expect(understand('Okay open Microsoft store.', now)).toEqual({ kind: 'open-installed', name: 'microsoft store', label: 'Microsoft Store' });
+    expect(understand('Open Microsoft Store app.', now)).toMatchObject({ kind: 'open-installed', name: 'microsoft store' });
+    expect(understand('Can you open clock?', now)).toMatchObject({ kind: 'open-installed', name: 'clock' });
+    expect(understand('Open Google Chrome.', now)).toMatchObject({ kind: 'open-installed', name: 'google chrome' });
+    expect(understand('open notepad', now)).toMatchObject({ kind: 'open-app', app: 'notepad' });
+  });
+
+  it('understands "open X and search for Y"', () => {
+    expect(understand('Then open google chrome and search for Netflix', now)).toEqual({ kind: 'search', query: 'netflix' });
+    expect(understand('open youtube and play lofi beats', now)).toEqual({ kind: 'play', query: 'lofi beats' });
+  });
+
+  it('understands more ways to ask for a reminder', () => {
+    const r = understand("Will you remind me of two o'clock about my meeting today?", now);
+    expect(r).toMatchObject({ kind: 'reminder', text: 'my meeting today' });
+    expect(new Date((r as { at: number }).at).getHours()).toBe(14);
+    expect(understand('set a reminder at 5 pm to call mom', now)).toMatchObject({ kind: 'reminder', text: 'call mom' });
+    expect(understand('Can you tell me my name?', now)).toEqual({ kind: 'get-name' });
   });
 
   it('searches, plays and checks the weather', () => {

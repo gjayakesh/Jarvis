@@ -1,10 +1,10 @@
 import { cleanName, describeDuration, greeting, reply, searchUrl, understand, whenText, youtubeUrl, type Intent } from '../voice/intents';
 import { voice } from '../voice/engine';
 import { navigate } from './router';
-import { hideWindow, hosted, openApp, openUrl } from './platform';
+import { hideWindow, hosted, openApp, openInstalled, openUrl } from './platform';
 import { getProfile, updateProfile } from './profile';
 import { addAlert, cancelAlerts, getAlerts, type Alert } from './timers';
-import { api, getAgentStatus, proposeAction, rollbackAction, type ActionProposal } from './agent';
+import { api, getAgentStatus, proposeAction, rollbackAction, setModelLoaded, type ActionProposal } from './agent';
 import { notify } from './notify';
 
 /**
@@ -58,6 +58,7 @@ export function perform(text: string): Outcome {
       break;
     case 'hide':
       voice.sleep();
+      setModelLoaded(false);
       window.setTimeout(() => void hideWindow(), 2600);
       break;
     case 'set-name':
@@ -119,6 +120,13 @@ export function perform(text: string): Outcome {
       break;
     case 'open-url':
       void openUrl(intent.url);
+      break;
+    case 'open-installed':
+      if (hosted || intent.fallbackUrl) {
+        void openInstalled(intent.name, intent.fallbackUrl).then(({ ok }) => {
+          if (!ok) voice.speak(`Sorry, I couldn't find an app called ${intent.label} on this PC. You can say search for ${intent.name}.`);
+        });
+      }
       break;
     case 'search':
       void openUrl(searchUrl(intent.query));

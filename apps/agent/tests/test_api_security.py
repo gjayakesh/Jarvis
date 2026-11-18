@@ -54,7 +54,49 @@ def test_model_output_with_commands_is_never_passed_on():
 def test_question_classification():
     assert "slow_pc" in answer.classify("why is my laptop so laggy")
     assert "network" in answer.classify("my wifi keeps dropping")
-    assert answer.classify("hello there") == ["general"]
+    # Not about the PC: conversation, never the PC health summary.
+    assert answer.classify("hello there") == ["chat"]
+    assert answer.classify("tell me something, I'm feeling bored") == ["chat"]
+    assert answer.classify("how is my computer doing") == ["general"]
+    assert answer.classify("Tell me a fun fact about space") == ["chat"]
+    assert "storage" in answer.classify("what does this disc refers to")
+    assert "storage" in answer.classify("how much disk space is left")
+    assert "apps" in answer.classify("What are the apps that are running in background?")
+
+
+def test_chat_never_gives_the_pc_summary(monkeypatch):
+    monkeypatch.setattr(answer.ollama, "status", lambda: {"runtime": "offline", "installed": False, "model": "x"})
+    r = client.post("/api/v1/assistant/turns", headers=AUTH, json={"text": "Can you tell me something fun?"})
+    body = r.json()
+    assert body["answer"] == answer.CHAT_FALLBACK
+    assert body["facts"] == [] and "CPU" not in body["answer"]
+
+
+def test_chat_reply_with_made_up_pc_readings_is_replaced(monkeypatch):
+    monkeypatch.setattr(answer.ollama, "status", lambda: {"runtime": "online", "installed": True, "model": "m"})
+    monkeypatch.setattr(answer.ollama, "chat_stream", lambda *a, **k: iter(["Sure! Your memory is at 42% so all good."]))
+    events = list(answer.answer_events("tell me a story"))
+    assert ("replace", "") in events
+    assert events[-1][1]["answer"] == answer.CHAT_FALLBACK
+    monkeypatch.setattr(answer.ollama, "chat_stream", lambda *a, **k: iter(["Why did the robot cross the road? To get a byte!"]))
+    done = list(answer.answer_events("tell me a story"))[-1][1]
+    assert done["answer"].startswith("Why did the robot") and done["provider"] == "ollama:m"
+
+
+def test_chat_does_not_repeat_its_last_reply(monkeypatch):
+    monkeypatch.setattr(answer.ollama, "status", lambda: {"runtime": "online", "installed": True, "model": "m"})
+    replies = iter(["The ISS orbits Earth every 90 minutes.", "The ISS orbits Earth every 90 minutes.", "Octopuses have three hearts!"])
+    monkeypatch.setattr(answer.ollama, "chat_stream", lambda *a, **k: iter([next(replies)]))
+    first = list(answer.answer_events("tell me a fun fact"))[-1][1]
+    events = list(answer.answer_events("another one please", first["conversation_id"]))
+    assert ("replace", "") in events
+    assert events[-1][1]["answer"] == "Octopuses have three hearts!"
+
+
+def test_running_apps_question_lists_apps(monkeypatch):
+    monkeypatch.setattr(answer.ollama, "status", lambda: {"runtime": "offline", "installed": False, "model": "x"})
+    r = client.post("/api/v1/assistant/turns", headers=AUTH, json={"text": "What apps are running in the background?"})
+    assert "apps are running" in r.json()["answer"]
 
 
 def test_assistant_streams_server_sent_events():

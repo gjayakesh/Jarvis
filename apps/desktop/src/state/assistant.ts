@@ -52,7 +52,7 @@ function update(id: number, patch: Partial<Turn>): void {
  * reply. Resolves with the text JARVIS should say.
  */
 export async function answerPcQuestion(text: string, opts: { showUser: boolean }): Promise<string> {
-  const pendingId = record(opts.showUser ? text : null, 'Checking your PC…', undefined, { pending: true });
+  const pendingId = record(opts.showUser ? text : null, 'Thinking…', undefined, { pending: true });
   // The status may be stale (JARVIS starts hidden while the agent boots): check again first.
   if (getAgentStatus().agent !== 'online') await refreshAgentStatus();
   if (getAgentStatus().agent !== 'online') {
@@ -69,7 +69,7 @@ export async function answerPcQuestion(text: string, opts: { showUser: boolean }
         update(pendingId, { text: written });
       } else if (event === 'assistant.replace') {
         written = '';
-        update(pendingId, { text: 'Checking your PC…' });
+        update(pendingId, { text: 'Thinking…' });
       } else if (event === 'assistant.done') {
         final = d as AssistantAnswer;
       }

@@ -82,6 +82,28 @@ export function openApp(app: string): Promise<boolean> {
   return call('/host/open', { app });
 }
 
+/**
+ * Start an app from the Start menu by its spoken name. With a fallback URL, only an app with
+ * exactly that name counts and the website opens otherwise. Resolves with what was opened.
+ */
+export async function openInstalled(name: string, fallbackUrl?: string): Promise<{ ok: boolean; opened: string | null }> {
+  if (!hosted || !token) {
+    if (fallbackUrl) return { ok: await openUrl(fallbackUrl), opened: null };
+    return { ok: false, opened: null };
+  }
+  try {
+    const res = await fetch('/host/open-installed', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-jarvis-token': token },
+      body: JSON.stringify({ name, fallbackUrl }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { opened?: string | null };
+    return { ok: res.ok, opened: data.opened ?? null };
+  } catch {
+    return { ok: false, opened: null };
+  }
+}
+
 /** Open an https page in the user's default browser (a new tab when running in a plain browser). */
 export async function openUrl(url: string): Promise<boolean> {
   if (hosted) return call('/host/open', { url });
