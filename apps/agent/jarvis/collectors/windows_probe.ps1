@@ -12,7 +12,7 @@ ea92d044750b6c4c30f59b55621ae61c0f6175a9: their CIM fallback paths, without the
 native Rust module.
 #>
 param(
-    [string]$Sections = 'events,devices,disks,adapters,netconfig,security,services,battery,startup,bluetooth,audio',
+    [string]$Sections = 'events,devices,disks,adapters,netconfig,security,services,battery,startup,bluetooth,audio,boot',
     [int]$EventHours = 24
 )
 $ErrorActionPreference = 'Stop'
@@ -209,6 +209,17 @@ Section 'startup' {
 Section 'bluetooth' {
     $radios = @(Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Bluetooth' -and $_.Name -match 'Bluetooth|Wireless|Radio|Adapter' })
     [ordered]@{ adapters = @($radios | ForEach-Object { [ordered]@{ name = $_.Name; status = $_.Status; problem_code = [int]$_.ConfigManagerErrorCode } }) }
+}
+
+Section 'boot' {
+    # D-BOOT-01: per-boot "core boot" time = Windows start (Kernel-General 12) to the
+    # event log service being up (EventLog 6005). Readable without admin, unlike the
+    # Diagnostics-Performance log. Sign-in time is not used: it includes time at the lock screen.
+    $starts = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-Kernel-General'; Id = 12 } -MaxEvents 10 -ErrorAction SilentlyContinue)
+    @($starts | ForEach-Object {
+            $t0 = $_.TimeCreated
+            $ready = Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'EventLog'; Id = 6005; StartTime = $t0; EndTime = $t0.AddMinutes(10) } -Oldest -MaxEvents 1 -ErrorAction SilentlyContinue
+            [ordered]@{ started = $t0.ToUniversalTime().ToString('o'); core_boot_s = if ($ready) { [math]::Round(($ready.TimeCreated - $t0).TotalSeconds, 1) } else { $null } } })
 }
 
 Section 'audio' {

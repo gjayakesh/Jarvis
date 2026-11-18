@@ -347,3 +347,53 @@ export function rejectAction(a: ActionProposal): Promise<ActionProposal> {
 export function rollbackAction(a: ActionProposal): Promise<ActionProposal> {
   return api<ActionProposal>(`/actions/${a.action_id}/rollback`, { method: 'POST' }).finally(actionsChanged);
 }
+
+// ---- streaming (spec §9.4 SSE) --------------------------------------------------------------
+
+/**
+ * Read a server-sent event stream from the agent. EventSource cannot send the
+ * host token header, so this uses fetch and parses "event:/data:" blocks.
+ * Resolves when the stream ends; reject means the stream could not start.
+ */
+export async function streamSse(
+  path: string,
+  init: { method?: string; body?: unknown; signal?: AbortSignal },
+  onEvent: (event: string, data: unknown) => void,
+): Promise<void> {
+  if (!hosted) throw new AgentError('NOT_HOSTED', 'JARVIS is running in a browser tab, without its agent.', 0);
+  const res = await fetch(`/api/v1${path}`, {
+    method: init.method ?? 'GET',
+    headers: { 'x-jarvis-token': hostToken ?? '', accept: 'text/event-stream', ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}) },
+    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    signal: init.signal,
+  });
+  if (!res.ok || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as { code?: string; message?: string };
+    throw new AgentError(data.code ?? 'INTERNAL_ERROR', data.message ?? `Agent error ${res.status}`, res.status);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let cut: number;
+    while ((cut = buffer.indexOf('\n\n')) >= 0) {
+      const block = buffer.slice(0, cut);
+      buffer = buffer.slice(cut + 2);
+      let event = 'message';
+      const data: string[] = [];
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) data.push(line.slice(5).trimStart());
+      }
+      if (data.length === 0) continue; // keep-alive comment
+      try {
+        onEvent(event, JSON.parse(data.join('\n')));
+      } catch {
+        /* malformed event: skip it */
+      }
+    }
+  }
+}

@@ -2391,3 +2391,21 @@ button.rail-link {
     justify-self: start;
   }
 }
+
+.dns-switcher {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+.dns-switcher .row {
+  flex-wrap: nowrap;
+}
+.dns-switcher .input {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .dns-switcher .row {
+    flex-wrap: wrap;
+  }
+}

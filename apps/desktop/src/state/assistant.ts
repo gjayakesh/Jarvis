@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { perform, type Outcome } from './skills';
-import { api, getAgentStatus, refreshAgentStatus, type AssistantAnswer, type Fact } from './agent';
+import { getAgentStatus, refreshAgentStatus, streamSse, type AssistantAnswer, type Fact } from './agent';
 
 /**
  * Conversation for this window only (spec FR-009). Everyday requests (time,
@@ -46,32 +46,43 @@ function update(id: number, patch: Partial<Turn>): void {
   emit();
 }
 
-/** Ask the agent a question about the PC. Null when the agent is not available. */
-export async function askPc(text: string): Promise<AssistantAnswer | null> {
-  // The status may be stale (JARVIS starts hidden while the agent boots): check again first.
-  if (getAgentStatus().agent !== 'online') await refreshAgentStatus();
-  if (getAgentStatus().agent !== 'online') return null;
-  try {
-    const answer = await api<AssistantAnswer>('/assistant/turns', { method: 'POST', body: { text, conversation_id: conversationId }, timeoutMs: 150_000 });
-    conversationId = answer.conversation_id;
-    return answer;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Answer something the built-in skills did not understand: from the agent when it
- * runs (as a pending turn that fills in), otherwise the honest offline reply.
- * Resolves with the text JARVIS should say.
+ * runs, streamed word by word into a pending turn; otherwise the honest offline
+ * reply. Resolves with the text JARVIS should say.
  */
 export async function answerPcQuestion(text: string, opts: { showUser: boolean }): Promise<string> {
   const pendingId = record(opts.showUser ? text : null, 'Checking your PC…', undefined, { pending: true });
-  const answer = await askPc(text);
+  // The status may be stale (JARVIS starts hidden while the agent boots): check again first.
+  if (getAgentStatus().agent !== 'online') await refreshAgentStatus();
+  if (getAgentStatus().agent !== 'online') {
+    update(pendingId, { text: OFFLINE_REPLY, kind: 'status', pending: false });
+    return OFFLINE_REPLY;
+  }
+  let written = '';
+  let final: AssistantAnswer | null = null;
+  try {
+    await streamSse('/assistant/turns?stream=1', { method: 'POST', body: { text, conversation_id: conversationId } }, (event, data) => {
+      const d = data as { text?: string } & Partial<AssistantAnswer>;
+      if (event === 'assistant.delta' && d.text) {
+        written += d.text;
+        update(pendingId, { text: written });
+      } else if (event === 'assistant.replace') {
+        written = '';
+        update(pendingId, { text: 'Checking your PC…' });
+      } else if (event === 'assistant.done') {
+        final = d as AssistantAnswer;
+      }
+    });
+  } catch {
+    final = null;
+  }
+  const answer = final as AssistantAnswer | null;
   if (!answer) {
     update(pendingId, { text: OFFLINE_REPLY, kind: 'status', pending: false });
     return OFFLINE_REPLY;
   }
+  conversationId = answer.conversation_id;
   update(pendingId, { text: answer.answer, facts: answer.facts, limitations: answer.limitations, provider: answer.provider, pending: false });
   return answer.answer;
 }

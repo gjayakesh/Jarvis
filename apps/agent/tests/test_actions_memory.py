@@ -57,7 +57,7 @@ def test_expired_approval_is_refused():
 
 
 def test_r3_and_unavailable_tools_are_denied():
-    for tool in ("firmware.update_guide", "network.change_dns"):
+    for tool in ("firmware.update_guide", "driver.install_package"):
         a = client.post("/api/v1/actions", headers=AUTH, json={"tool_id": tool}).json()
         assert a["status"] == "DENIED"
         assert client.post(f"/api/v1/actions/{a['action_id']}/execute", headers=AUTH).status_code == 403
@@ -129,3 +129,23 @@ def test_tools_needing_admin_prompt_are_never_automatic():
     db.set_pref("auto_safe_fixes", "on")
     assert TOOLS["network.flush_dns_cache"].needs_elevation
     assert policy.propose("network.flush_dns_cache", {})["status"] == "AWAITING_APPROVAL"
+
+
+def test_dns_change_arguments_are_fixed_choices():
+    bad = client.post("/api/v1/actions", headers=AUTH, json={"tool_id": "network.change_dns", "arguments": {"interface": "Wi-Fi", "servers": "6.6.6.6"}})
+    assert bad.status_code == 422
+    inj = client.post("/api/v1/actions", headers=AUTH, json={"tool_id": "network.change_dns", "arguments": {"interface": "Wi-Fi\"; calc", "servers": "google"}})
+    assert inj.status_code == 422
+    ok = client.post("/api/v1/actions", headers=AUTH, json={"tool_id": "network.change_dns", "arguments": {"interface": "Wi-Fi", "servers": "google"}}).json()
+    assert ok["status"] == "AWAITING_APPROVAL" and ok["approval_copy"]["needs_admin_prompt"]
+
+
+def test_elevated_runner_refuses_quotes():
+    from jarvis.actions.tools import _run_elevated
+    with pytest.raises(ValueError):
+        _run_elevated("powershell.exe", ['x" -Command calc'])
+
+
+def test_sfc_runs_in_background():
+    assert TOOLS["windows.run_sfc_dism"].background and TOOLS["windows.run_sfc_dism"].needs_elevation
+    assert TOOLS["driver.open_optional_updates"].risk_class == "R0"

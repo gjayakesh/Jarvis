@@ -38,9 +38,11 @@ Local AI is optional: install [Ollama](https://ollama.com), then
 | Live metrics (10 s samples, 24 h kept) and processes (30 s) | `collectors/sampler.py`, `collectors/system.py` |
 | Windows evidence: events, devices, disks, security, services, battery, startup | `collectors/windows_probe.ps1` |
 | Router, DNS and HTTPS probes | `collectors/network.py` |
-| 22 deterministic rules, 6 scan profiles | `diagnostics/rules.py`, `diagnostics/engine.py` |
+| GPU temperature, load and VRAM (nvidia-smi), boot timing | `collectors/gpu.py`, `collectors/windows_probe.ps1` |
+| 26 deterministic rules, 6 scan profiles | `diagnostics/rules.py`, `diagnostics/engine.py` |
 | Redacted JSON/HTML reports | `diagnostics/report.py` |
-| Evidence-grounded answers (Ollama optional) | `assistant/answer.py` |
+| Evidence-grounded answers (Ollama optional), streamed over SSE | `assistant/answer.py` |
+| Scan progress streamed over SSE | `api/app.py` (`/diagnostics/sessions/{id}/events`) |
 | Long-term memory, off by default, user-approved | `assistant/memory.py` |
 | Safe actions: registry, approval bound to argument hash, verify, undo | `actions/tools.py`, `actions/policy.py` |
 
@@ -48,24 +50,26 @@ Local AI is optional: install [Ollama](https://ollama.com), then
 
 | Tool | Risk | Notes |
 |---|---|---|
-| `network.flush_dns_cache` | R1 | Verifies name lookups afterwards |
+| `network.flush_dns_cache` | R1 | Windows admin prompt; verifies name lookups afterwards |
 | `jarvis.clear_owned_cache` | R1 | Only `jarvis-report-*` files JARVIS wrote |
 | `startup.disable_entry` | R2 | Per-user startup items, like Task Manager; Undo restores |
 | `power.shutdown_restart` | R2 | 60–600 s countdown; Undo cancels |
 | `service.restart_named` | R2 | Fixed service list; Windows shows its admin prompt |
-| `network.change_dns`, `windows.run_sfc_dism` | R2 | Not available: need an admin helper |
+| `network.change_dns` | R2 | Automatic / Cloudflare / Google / Quad9 only; admin prompt; Undo restores |
+| `windows.run_sfc_dism` | R2 | SFC, then DISM + SFC if needed; admin prompt; runs in the background |
+| `driver.open_optional_updates` | R0 | Opens Windows Update optional (signed) driver updates |
 | `driver.install_package`, `firmware.update_guide` | R3 | Never automated |
 
-R1 tools run automatically only if "Automatically apply safe fixes" is on.
-Everything else waits for the user to approve the exact proposal shown.
+R1 tools run automatically only if "Automatically apply safe fixes" is on, and never when
+they need the Windows admin prompt. Everything else waits for the user to approve the exact
+proposal shown. Admin actions do not use a resident elevated service: each one runs a fixed,
+reviewed script from `actions/scripts/` through Windows' own UAC prompt, which the user answers.
 
 ### Not covered yet
 
-- Temperatures, GPU load, slow boot and personal baselines (rules D-THERM-01/02,
-  D-GPU-01, D-BOOT-01, D-ANOM-01) need sensors, admin logs or a week of history.
-- Driver-change correlation (D-DRV-02), USB disconnect history (D-USB-01),
-  SFC/DISM (D-OS-01).
-- Scan progress and answers are polled, not streamed over SSE.
+- CPU temperatures (Windows only exposes them to administrators); the GPU sensor is read.
+- Temperature baselines and personal metric baselines (D-THERM-02, D-ANOM-01) need weeks of history.
+- Driver-change correlation (D-DRV-02) and USB disconnect history (D-USB-01).
 - Schema changes use a small built-in migration step (`storage/db.py`), not Alembic.
 
 ## Tests

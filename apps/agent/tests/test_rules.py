@@ -120,3 +120,26 @@ def test_battery_wear():
 def test_confidence_is_bounded_and_needs_samples():
     assert confidence(0.9, samples=1, needed=10) < confidence(0.9, samples=10, needed=10)
     assert 0.05 <= confidence(0.0) and confidence(1.0, corroborated=True) <= 0.97
+
+
+def test_gpu_thermal_uses_vendor_limit():
+    g = lambda temp, throttle=False: ev("gpu.snapshot", {"supported": True, "name": "GTX 1650", "temperature_c": temp, "utilization_percent": 40, "memory_used_mb": 500, "memory_total_mb": 4096, "hw_thermal_slowdown": throttle, "sw_thermal_slowdown": False, "slowdown_c": 97, "target_c": 87})
+    assert run("D-THERM-01", gpu__snapshot=g(60)) is None
+    assert run("D-THERM-01", gpu__snapshot=g(89)).severity == "medium"
+    assert run("D-THERM-01", gpu__snapshot=g(93)).severity == "high"
+    assert run("D-THERM-01", gpu__snapshot=g(80, throttle=True)).severity == "high"
+    assert run("D-THERM-01", gpu__snapshot=ev("gpu.snapshot", {"supported": False})) is None
+
+
+def test_gpu_bottleneck():
+    g = lambda util, used: ev("gpu.snapshot", {"supported": True, "name": "GTX 1650", "utilization_percent": util, "memory_used_mb": used, "memory_total_mb": 4096})
+    assert run("D-GPU-01", gpu__snapshot=g(99, 1000)) is not None
+    assert run("D-GPU-01", gpu__snapshot=g(20, 4000)) is not None
+    assert run("D-GPU-01", gpu__snapshot=g(30, 1000)) is None
+
+
+def test_slow_boot_needs_baseline_and_two_slow_starts():
+    b = lambda *secs: ev("windows.boot", [{"started": f"2026-11-{10 + i:02d}T08:00:00Z", "core_boot_s": s} for i, s in enumerate(secs)])
+    assert run("D-BOOT-01", windows__boot=b(45, 40, 14, 13, 15, 13)) is not None
+    assert run("D-BOOT-01", windows__boot=b(45, 14, 14, 13, 15, 13)) is None  # one slow start is noise
+    assert run("D-BOOT-01", windows__boot=b(45, 40, 14)) is None  # not enough boots for a baseline

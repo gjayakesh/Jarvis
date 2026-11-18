@@ -23,7 +23,7 @@ build-backend = "setuptools.build_meta"
 include = ["jarvis*"]
 
 [tool.setuptools.package-data]
-jarvis = ["collectors/*.ps1"]
+jarvis = ["collectors/*.ps1", "actions/scripts/*.ps1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

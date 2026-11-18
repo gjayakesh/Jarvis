@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 from datetime import timedelta
 from typing import Any
 
@@ -60,7 +61,7 @@ def to_json(a: db.ActionProposal) -> dict[str, Any]:
         "approval_copy": a.approval_copy,
         "result": a.result,
         "verification": a.verification,
-        "can_rollback": bool(tool and tool.rollback and a.status in ("VERIFIED", "NOT_VERIFIED") and a.rollback_state is not None),
+        "can_rollback": bool(tool and tool.rollback and a.status in ("VERIFIED", "NOT_VERIFIED")),
         "created_at": db.iso(a.created_at),
         "expires_at": db.iso(a.expires_at),
         "approved_at": db.iso(a.approved_at),
@@ -180,6 +181,13 @@ def execute(action_id: str) -> dict[str, Any]:
         row.status = "EXECUTING"
         args = dict(row.arguments)
     db.audit("action.executing", f"Running: {tool.title}", {"action_id": action_id, "tool_id": tool.tool_id})
+    if tool.background:
+        threading.Thread(target=_finish, args=(action_id, tool, args), name=f"action-{action_id}", daemon=True).start()
+        return get(action_id)
+    return _finish(action_id, tool, args)
+
+
+def _finish(action_id: str, tool: Tool, args: dict[str, Any]) -> dict[str, Any]:
     try:
         outcome: Outcome = tool.execute(args)
     except Exception as exc:  # report, never crash the agent
@@ -192,8 +200,8 @@ def execute(action_id: str) -> dict[str, Any]:
             verification = {"verified": False, "summary": f"Could not verify ({type(exc).__name__})."}
     with db.session() as s:
         row = _load(s, action_id)
-        row.result = {"ok": outcome.ok, "summary": outcome.summary, **outcome.details}
-        row.verification = verification
+        row.result = {"ok": outcome.ok, "summary": outcome.summary, **{k: v for k, v in outcome.details.items() if k in ("exit_code", "final", "files", "bytes")}}
+        row.verification = {k: v for k, v in verification.items() if k != "evidence"}
         row.rollback_state = outcome.rollback_state or {}
         row.status = "FAILED" if not outcome.ok else ("VERIFIED" if verification.get("verified", True) else "NOT_VERIFIED")
         row.finished_at = db.now()

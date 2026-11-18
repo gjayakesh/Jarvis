@@ -2,15 +2,15 @@ import { useEffect, useState } from 'react';
 import { Download, FileSearch, History, Loader2, Play } from 'lucide-react';
 import { Button, Empty, Panel, ScreenHeader, StatusPill } from '../components/ui';
 import { FindingCard } from '../components/FindingCard';
-import { agentMissingText, ago, api, AgentError, useAgentStatus, usePoll, type ScanSession } from '../state/agent';
+import { agentMissingText, ago, api, AgentError, streamSse, useAgentStatus, usePoll, type ScanSession } from '../state/agent';
 
 /** Scan profiles from the spec (§11.2). Durations are the spec's targets. */
 const PROFILES = [
-  { id: 'quick_health', name: 'Quick health', checks: 'Windows, CPU, memory, free space, top processes, recent critical events, drivers, security, basic network', time: '10–30 s' },
-  { id: 'performance', name: 'Performance', checks: 'CPU, memory, disk and process trends, startup apps, recent events', time: '15–40 s' },
+  { id: 'quick_health', name: 'Quick health', checks: 'Windows, CPU, memory, GPU, free space, top processes, recent critical events, drivers, security, basic network', time: '10–30 s' },
+  { id: 'performance', name: 'Performance', checks: 'CPU, memory, GPU, disk and process trends, boot time, startup apps, recent events', time: '15–40 s' },
   { id: 'network', name: 'Network', checks: 'Adapter, router, packet loss, DNS and HTTPS checks', time: '60–80 s' },
   { id: 'stability', name: 'Stability', checks: 'Blue screens, hardware errors, unexpected shutdowns, app crashes, display driver resets (7 days)', time: '15–40 s' },
-  { id: 'hardware', name: 'Hardware', checks: 'Drive health, battery wear, Bluetooth, audio, devices and services', time: '15–40 s' },
+  { id: 'hardware', name: 'Hardware', checks: 'Drive health, GPU temperature, battery wear, Bluetooth, audio, devices and services', time: '15–40 s' },
   { id: 'full', name: 'Full system', checks: 'Everything above', time: '1–2 min' },
 ];
 
@@ -26,7 +26,21 @@ export function Diagnostics() {
   const sessions = list.data?.sessions ?? [];
   const running = sessions.find((x) => x.status === 'queued' || x.status === 'running');
   const shownId = selected ?? running?.session_id ?? sessions[0]?.session_id ?? null;
-  const detail = usePoll<ScanSession>(shownId ? `/diagnostics/sessions/${shownId}` : null, running?.session_id === shownId ? 1500 : 60_000);
+  const detail = usePoll<ScanSession>(shownId ? `/diagnostics/sessions/${shownId}` : null, running?.session_id === shownId ? 8000 : 60_000);
+
+  // Live progress while a scan runs (SSE); polling above is only the fallback.
+  useEffect(() => {
+    if (!running) return;
+    const ctrl = new AbortController();
+    void streamSse(`/diagnostics/sessions/${running.session_id}/events`, { signal: ctrl.signal }, (event) => {
+      if (event === 'collector.progress') detail.reload();
+      if (event === 'session.completed') {
+        detail.reload();
+        list.reload();
+      }
+    }).catch(() => undefined);
+    return () => ctrl.abort();
+  }, [running?.session_id]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = detail.data?.session_id === shownId ? detail.data : null;
 
   // When a running scan finishes, refresh the list once.
@@ -152,6 +166,8 @@ const STEP_LABEL: Record<string, string> = {
   'sampler.windows': 'Recent trends',
   'windows.probe': 'Windows events, drivers, security and services',
   'network.probes': 'Router, DNS and internet checks',
+  'gpu.nvidia': 'Graphics card temperature and load',
+  'windows.sfc_result': 'Last system file check',
   rules: 'Checking the rules',
 };
 

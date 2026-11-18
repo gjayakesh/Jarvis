@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import secrets
+import time
 import uuid
 from datetime import timedelta
 from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from .. import __version__
 from ..assistant import answer as assistant
 from ..assistant import ollama
-from ..collectors import system
+from ..collectors import gpu, system
 from ..collectors.sampler import sampler
 from ..config import settings
 from ..diagnostics import engine, report
@@ -113,6 +115,12 @@ def system_summary() -> dict[str, Any]:
         "net_sent_bps": latest.net_sent_bps if latest else None,
         "network_interfaces": system.network_interfaces(),
     }
+
+
+@app.get("/api/v1/system/gpu", dependencies=[api])
+def system_gpu() -> dict[str, Any]:
+    """GPU temperature, load and VRAM from nvidia-smi (cached 5 s)."""
+    return gpu.read()
 
 
 @app.get("/api/v1/system/inventory", dependencies=[api])
@@ -279,9 +287,66 @@ class Turn(BaseModel):
     conversation_id: str | None = Field(None, max_length=40)
 
 
+def _sse(event: str, data: Any, event_id: int | None = None) -> str:
+    head = f"id: {event_id}\n" if event_id is not None else ""
+    return f"{head}event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
 @app.post("/api/v1/assistant/turns", dependencies=[api])
-def assistant_turn(body: Turn) -> dict[str, Any]:
-    return assistant.answer(body.text, body.conversation_id)
+def assistant_turn(body: Turn, stream: bool = Query(False)):
+    """Answer a question. With ?stream=1 the answer arrives as SSE: assistant.delta pieces,
+    assistant.replace (when the AI text must be swapped for rule text), assistant.done."""
+    if not stream:
+        return assistant.answer(body.text, body.conversation_id)
+
+    def events():
+        n = 0
+        for kind, value in assistant.answer_events(body.text, body.conversation_id):
+            n += 1
+            yield _sse(f"assistant.{kind}", {"text": value} if kind != "done" else value, n)
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"cache-control": "no-store", "x-accel-buffering": "no"})
+
+
+@app.get("/api/v1/diagnostics/sessions/{session_id}/events", dependencies=[api])
+def scan_events(session_id: str):
+    """Scan progress as SSE (spec §9.4): collector.progress, finding.created, session.completed."""
+    with db.session() as s:
+        if not s.get(db.DiagnosticSession, session_id):
+            raise ApiError(404, "NOT_FOUND", "Unknown scan")
+
+    def events():
+        sent_steps: dict[str, str] = {}
+        n = 0
+        deadline = time.monotonic() + 15 * 60
+        last_beat = time.monotonic()
+        yield _sse("session.started", {"session_id": session_id}, n)
+        while time.monotonic() < deadline:
+            with db.session() as s:
+                row = s.get(db.DiagnosticSession, session_id)
+                progress = list(row.progress or []) if row else []
+                status = row.status if row else "failed"
+                summary = dict(row.summary or {}) if row else {}
+                findings = s.scalars(select(db.Finding).where(db.Finding.session_id == session_id)).all() if status == "completed" else []
+                found = [{"finding_id": f.id, "severity": f.severity, "title": f.title} for f in findings]
+            for p in progress:
+                if sent_steps.get(p["collector_id"]) != p["status"]:
+                    sent_steps[p["collector_id"]] = p["status"]
+                    n += 1
+                    yield _sse("collector.progress", p, n)
+            if status in ("completed", "failed"):
+                for f in found:
+                    n += 1
+                    yield _sse("finding.created", f, n)
+                n += 1
+                yield _sse("session.completed", {"session_id": session_id, "status": status, "summary": summary}, n)
+                return
+            if time.monotonic() - last_beat > 10:
+                last_beat = time.monotonic()
+                yield ": keep-alive\n\n"
+            time.sleep(0.5)
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"cache-control": "no-store", "x-accel-buffering": "no"})
 
 
 @app.get("/api/v1/assistant/model", dependencies=[api])

@@ -619,14 +619,111 @@ def battery(ctx: Context) -> Result | None:
     )
 
 
+# ---- GPU / thermal / boot (NVIDIA tools, boot events) -------------------------------------
+
+
+@rule("D-GPU-01", "1.0.0", "gpu", "gpu_resource_bottleneck", "gpu.snapshot")
+def gpu_bottleneck(ctx: Context) -> Result | None:
+    ev = ctx.get("gpu.snapshot")
+    g = (ev.data if ev else None) or {}
+    if not ev or not g.get("supported"):
+        return None
+    util = g.get("utilization_percent") or 0
+    used, total = g.get("memory_used_mb") or 0, g.get("memory_total_mb") or 0
+    vram_full = total > 0 and used / total >= 0.95
+    if util < 95 and not vram_full:
+        return None
+    return Result(
+        title="The graphics card is at its limit",
+        statement=("The GPU is fully busy" if util >= 95 else "Video memory is nearly full") + ", so games and video apps may stutter.",
+        severity="medium" if ctx.symptom in ("slow_pc", "app_freeze") else "low",
+        confidence=confidence(0.6, corroborated=ctx.symptom is not None),
+        facts=[ev.fact("GPU load", f"{util:.0f}%"), ev.fact("Video memory", f"{used:.0f} of {total:.0f} MB"), ev.fact("GPU", g.get("name"))],
+        causes=[{"name": "A game or video app is using the GPU fully", "confidence": 0.6}],
+        next_step="Lower in-game graphics settings or close other GPU apps. This is one reading; run it again while the problem happens.",
+        limitations=["A single reading; the spec asks for a sustained window, so this stays low unless you report a symptom."],
+        evidence=[ev],
+    )
+
+
+@rule("D-THERM-01", "1.0.0", "thermal", "thermal_pressure", "gpu.snapshot")
+def thermal(ctx: Context) -> Result | None:
+    ev = ctx.get("gpu.snapshot")
+    g = (ev.data if ev else None) or {}
+    if not ev or not g.get("supported") or g.get("temperature_c") is None:
+        return None
+    temp = g["temperature_c"]
+    slowdown, target = g.get("slowdown_c"), g.get("target_c")
+    throttling = g.get("hw_thermal_slowdown") or g.get("sw_thermal_slowdown")
+    near = slowdown is not None and temp >= slowdown - 5
+    if not throttling and not near and not (target and temp > target):
+        return None
+    limit = f"{slowdown:.0f} \u00b0C" if slowdown else "unknown"
+    return Result(
+        title="The graphics card is running hot",
+        statement=f"The GPU is at {temp:.0f} \u00b0C" + (" and has slowed itself down to cool off." if throttling else f"; it starts slowing down at {limit}."),
+        severity="high" if throttling or near else "medium",
+        confidence=confidence(0.8, corroborated=bool(throttling)),
+        facts=[ev.fact("GPU temperature", f"{temp:.0f} \u00b0C"), ev.fact("Slowdown limit (NVIDIA)", limit), ev.fact("Thermal slowdown", "active" if throttling else "not active")],
+        causes=[{"name": "Blocked vents or dust in the fans", "confidence": 0.45}, {"name": "Heavy GPU load in a warm room", "confidence": 0.35}],
+        next_step="Make sure the vents are clear and the laptop is on a hard surface. JARVIS never changes fan settings.",
+        limitations=["Only the GPU sensor is read; CPU temperatures need administrator access on this PC."],
+        evidence=[ev],
+    )
+
+
+@rule("D-BOOT-01", "1.0.0", "startup", "slow_boot", "windows.boot")
+def slow_boot(ctx: Context) -> Result | None:
+    ev = ctx.get("windows.boot")
+    boots = [b for b in (ev.data if ev else []) or [] if b.get("core_boot_s")]
+    if not ev or len(boots) < 4:
+        return None
+    latest, earlier = boots[:2], sorted(b["core_boot_s"] for b in boots[2:])
+    baseline = earlier[len(earlier) // 2]
+    slow = [b for b in latest if b["core_boot_s"] >= baseline * 1.5 and b["core_boot_s"] - baseline >= 10]
+    if len(slow) < 2:  # the baseline from earlier boots, plus the last two boots both slow
+        return None
+    return Result(
+        title="Windows is starting more slowly than usual",
+        statement=f"The last two starts took {latest[0]['core_boot_s']:.0f} s and {latest[1]['core_boot_s']:.0f} s to reach Windows services; this PC usually takes about {baseline:.0f} s.",
+        severity="medium",
+        confidence=confidence(0.65, samples=len(boots), needed=6),
+        facts=[ev.fact(f"Start {b['started'][:10]}", f"{b['core_boot_s']:.0f} s") for b in boots[:4]] + [ev.fact("Usual start time", f"{baseline:.0f} s")],
+        causes=[{"name": "A new driver or update slowing start-up", "confidence": 0.4}, {"name": "Disk busy or failing during start-up", "confidence": 0.25}],
+        next_step="Check recent updates and startup apps (Activity & safety lists yours). Nothing is disabled automatically.",
+        limitations=["Measures start until Windows services are up (no admin needed); time to the desktop is not included."],
+        evidence=[ev],
+    )
+
+
+
+@rule("D-OS-01", "1.0.0", "os_integrity", "system_file_corruption", "windows.sfc")
+def system_files(ctx: Context) -> Result | None:
+    ev = ctx.get("windows.sfc")
+    data = (ev.data if ev else None) or {}
+    final = data.get("final")
+    if not ev or final not in ("unrepaired", "failed", "repaired"):
+        return None
+    repaired = final == "repaired"
+    return Result(
+        title="Windows repaired damaged system files" if repaired else "Windows system files are damaged",
+        statement=("The check you ran found damaged system files and repaired them." if repaired
+                   else "The check you ran found damaged system files that Windows could not repair" + (", even after DISM." if data.get("dism") else ".")),
+        severity="info" if repaired else "high",
+        confidence=confidence(0.9),
+        facts=[ev.fact("System File Checker", (data.get("sfc") or {}).get("verdict")), ev.fact("DISM repair", "ran" if data.get("dism") else "not needed")]
+        + ([ev.fact("Second check", (data.get("sfc_after") or {}).get("verdict"))] if data.get("sfc_after") else []),
+        causes=[{"name": "Interrupted update or disk errors", "confidence": 0.5}],
+        next_step="Restart, then run the check again." if repaired else "Back up your files. A Windows repair install (keeping files) usually fixes this; JARVIS can guide you.",
+        evidence=[ev],
+        actions=[] if repaired else [{"tool_id": "windows.run_sfc_dism", "arguments": {}}],
+    )
+
+
 # Rules in the spec that this build cannot evaluate yet, and why (shown in scan summaries).
 NOT_YET = {
-    "D-THERM-01": "Temperature sensors need LibreHardwareMonitor (not installed).",
-    "D-THERM-02": "Needs temperature sensors and a baseline.",
-    "D-GPU-01": "GPU load counters are not collected yet.",
-    "D-BOOT-01": "Boot timing needs at least 3 recorded boots and admin-only event logs.",
+    "D-THERM-02": "Needs a temperature baseline over many days.",
     "D-DRV-02": "Driver-change correlation needs driver install history (next round).",
-    "D-OS-01": "Runs only after you start an SFC/DISM check, which needs approval.",
     "D-USB-01": "Device connect/disconnect history is not collected yet.",
     "D-ANOM-01": "Needs at least 7 days of baseline samples.",
 }

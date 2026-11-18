@@ -44,15 +44,46 @@ class ModelUnavailable(RuntimeError):
     pass
 
 
-def chat(system: str, user: str, *, timeout: float = 120.0) -> str:
-    """One non-streaming chat turn. Small context and a short keep-alive keep RAM use low."""
-    payload = {
+# One fixed context size, so the model is never reloaded between questions. The model runs on
+# the GPU here (its weights sit in video memory), so keeping it loaded costs little system RAM.
+OPTIONS = {"temperature": 0.2, "num_ctx": 1024, "num_predict": 200}
+KEEP_ALIVE = "30m"
+
+
+def _payload(system: str, user: str, stream: bool) -> dict[str, Any]:
+    return {
         "model": model_name(),
-        "stream": False,
-        "keep_alive": "3m",  # unload soon after: this PC has 8 GB of RAM
-        "options": {"temperature": 0.2, "num_ctx": 3072, "num_predict": 320},
+        "stream": stream,
+        "keep_alive": KEEP_ALIVE,
+        "options": OPTIONS,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
+
+
+def chat_stream(system: str, user: str, *, first_piece_timeout: float = 40.0, timeout: float = 120.0):
+    """Yield the reply in pieces as the model writes it (spec §9.4 assistant.delta)."""
+    import json
+
+    try:
+        # read= bounds the wait for each piece; the first one includes loading the model.
+        with httpx.stream("POST", f"{settings.ollama_url}/api/chat", json=_payload(system, user, True), timeout=httpx.Timeout(timeout, connect=2.0, read=first_piece_timeout)) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                part = json.loads(line)
+                piece = part.get("message", {}).get("content", "")
+                if piece:
+                    yield piece
+                if part.get("done"):
+                    return
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ModelUnavailable(type(exc).__name__) from exc
+
+
+def chat(system: str, user: str, *, timeout: float = 120.0) -> str:
+    """One non-streaming chat turn. Small context and a short keep-alive keep RAM use low."""
+    payload = _payload(system, user, False)
     try:
         r = httpx.post(f"{settings.ollama_url}/api/chat", json=payload, timeout=timeout)
         r.raise_for_status()

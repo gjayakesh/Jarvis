@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 PROBE = Path(__file__).with_name("windows_probe.ps1")
-ALL_SECTIONS = ("events", "devices", "disks", "adapters", "netconfig", "security", "services", "battery", "startup", "bluetooth", "audio")
+ALL_SECTIONS = ("events", "devices", "disks", "adapters", "netconfig", "security", "services", "battery", "startup", "bluetooth", "audio", "boot")
 _CREATE_NO_WINDOW = 0x08000000
 
 
@@ -49,4 +49,4 @@ def run_probe(sections: tuple[str, ...] = ALL_SECTIONS, event_hours: int = 24, t
     return out
 
 
-LIST_SECTIONS = {"devices", "disks", "adapters", "netconfig", "services", "startup", "audio"}
+LIST_SECTIONS = {"devices", "disks", "adapters", "netconfig", "services", "startup", "audio", "boot"}

@@ -15,6 +15,7 @@ export function Monitor() {
   const [range, setRange] = useState(RANGES[0]);
   const metrics = usePoll<Metrics>(online ? '/metrics/current' : null, 5000);
   const history = usePoll<{ points: HistoryPoint[] }>(online ? `/metrics/history?minutes=${range.minutes}&points=120` : null, range.minutes <= 5 ? 10_000 : 60_000);
+  const gpu = usePoll<{ supported: boolean; name?: string; temperature_c?: number; utilization_percent?: number; memory_used_mb?: number; memory_total_mb?: number; slowdown_c?: number; reason?: string }>(online ? '/system/gpu' : null, 10_000).data;
   const procs = usePoll<{ observed_at: string | null; processes: ProcessRow[] }>(online ? '/processes?limit=15' : null, 15_000);
   const m = metrics.data;
 
@@ -29,6 +30,15 @@ export function Monitor() {
       source: m?.sources.disk,
     },
     { title: 'Network', reading: formatRate(m?.net_recv_bps, true).replace(' Mb/s', ''), unit: `Mb/s down · ${formatRate(m?.net_sent_bps, true)} up`, what: 'Download and upload traffic.', source: m?.sources.network },
+    {
+      title: 'GPU',
+      reading: gpu?.supported ? `${gpu.utilization_percent?.toFixed(0) ?? '--'}` : '--',
+      unit: gpu?.supported
+        ? `% busy · ${gpu.temperature_c?.toFixed(0)} °C (slows at ${gpu.slowdown_c?.toFixed(0) ?? '?'} °C) · ${gpu.memory_used_mb?.toFixed(0)}/${gpu.memory_total_mb?.toFixed(0)} MB`
+        : '',
+      what: gpu?.supported ? `${gpu.name}: load, temperature and video memory.` : gpu?.reason ?? 'Graphics card load and temperature.',
+      source: gpu?.supported ? 'nvidia-smi' : undefined,
+    },
   ];
 
   return (

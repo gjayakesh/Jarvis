@@ -9,7 +9,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from ..collectors import network, system, windows
+from ..collectors import gpu, network, system, windows
 from ..collectors.sampler import sampler
 from ..storage import db
 from .evidence import Evidence, section
@@ -19,16 +19,17 @@ PROFILES: dict[str, dict[str, Any]] = {
     "quick_health": {
         "label": "Quick health",
         "probe": ("events", "devices", "services", "security", "netconfig"),
+        "gpu": True,
         "event_hours": 24,
         "ping_count": 10,
         "dns": True,
         "https": True,
     },
-    "performance": {"label": "Performance", "probe": ("events", "disks", "startup", "services"), "event_hours": 24, "ping_count": 0},
+    "performance": {"label": "Performance", "probe": ("events", "disks", "startup", "services", "boot"), "event_hours": 24, "ping_count": 0, "gpu": True},
     "network": {"label": "Network", "probe": ("adapters", "netconfig"), "event_hours": 24, "ping_count": 60, "dns": True, "https": True},
-    "stability": {"label": "Stability", "probe": ("events", "devices"), "event_hours": 24 * 7, "ping_count": 0},
-    "hardware": {"label": "Hardware", "probe": ("disks", "battery", "bluetooth", "audio", "devices", "services"), "event_hours": 24, "ping_count": 0},
-    "full": {"label": "Full system", "probe": windows.ALL_SECTIONS, "event_hours": 24, "ping_count": 30, "dns": True, "https": True},
+    "stability": {"label": "Stability", "probe": ("events", "devices", "boot"), "event_hours": 24 * 7, "ping_count": 0},
+    "hardware": {"label": "Hardware", "probe": ("disks", "battery", "bluetooth", "audio", "devices", "services"), "event_hours": 24, "ping_count": 0, "gpu": True},
+    "full": {"label": "Full system", "probe": windows.ALL_SECTIONS, "event_hours": 24, "ping_count": 30, "dns": True, "https": True, "gpu": True},
 }
 
 PROBE_TYPES = {
@@ -43,6 +44,7 @@ PROBE_TYPES = {
     "startup": "windows.startup",
     "bluetooth": "windows.bluetooth",
     "audio": "windows.audio",
+    "boot": "windows.boot",
 }
 
 _running: dict[str, threading.Thread] = {}
@@ -98,6 +100,10 @@ def collect(profile: str, session_id: str | None = None) -> dict[str, Evidence]:
     step("sampler.windows", lambda: _window_evidence())
     if spec.get("probe"):
         step("windows.probe", lambda: _probe_evidence(spec["probe"], spec.get("event_hours", 24), private))
+    if spec.get("gpu"):
+        step("gpu.nvidia", lambda: [_gpu_evidence()])
+    if profile in ("stability", "full", "quick_health"):
+        step("windows.sfc_result", lambda: _sfc_evidence())
     if spec.get("ping_count") or spec.get("dns") or spec.get("https"):
         step("network.probes", lambda: _network_evidence(private.get("gateways", []), spec))
     return ev
@@ -111,6 +117,28 @@ def _system_evidence() -> list[Evidence]:
         Evidence("volume.psutil.v1", "volume.list", "psutil.disk_usage", system.volumes()),
         Evidence("process.psutil.v1", "process.top", "psutil.process_iter", sampler.latest_processes(10) or system.top_processes(10, 1.0)),
     ]
+
+
+def _sfc_evidence() -> list[Evidence]:
+    """The last System File Checker run you started (D-OS-01), if within 30 days."""
+    import json
+    from datetime import datetime, timedelta
+
+    raw = db.get_pref("last_sfc", "")
+    if not raw:
+        return []
+    data = json.loads(raw)
+    finished = datetime.fromisoformat(str(data.get("finished", "")).replace("Z", "+00:00")) if data.get("finished") else None
+    if not finished or db.now() - finished > timedelta(days=30):
+        return []
+    return [Evidence("sfc.result.v1", "windows.sfc", "System File Checker (you started it)", data, observed_at=finished)]
+
+
+def _gpu_evidence() -> Evidence:
+    g = gpu.read(max_age=0)
+    if not g.get("supported"):
+        return Evidence("gpu.nvidia.v1", "gpu.snapshot", "nvidia-smi", g, quality="unsupported", limitations=[g.get("reason", "Not supported")])
+    return Evidence("gpu.nvidia.v1", "gpu.snapshot", "nvidia-smi", g, units={"temperature_c": "celsius", "memory_used_mb": "MB"})
 
 
 def _window_evidence() -> list[Evidence]:

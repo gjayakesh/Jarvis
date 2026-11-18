@@ -14,6 +14,45 @@ const RISK = [
   { id: 'R3', name: 'Risky or destructive', tone: 'bad' as const, rule: 'Never automatic. JARVIS only guides you.', example: 'BIOS updates, formatting drives, deleting files.' },
 ];
 
+/** Pick a connected adapter and a DNS preset; becomes a proposal like every other fix. */
+function DnsSwitcher({ onPropose }: { onPropose: (iface: string, servers: string) => void }) {
+  const summary = usePoll<{ network_interfaces: { name: string; is_up: boolean }[] }>('/system/summary', 120_000);
+  const adapters = (summary.data?.network_interfaces ?? []).filter((n) => n.is_up && !/^(vEthernet|Local Area Connection\*|Bluetooth)/i.test(n.name));
+  const [iface, setIface] = useState('');
+  const [servers, setServers] = useState('automatic');
+  const chosen = iface || adapters[0]?.name || '';
+  if (adapters.length === 0) return null;
+  return (
+    <div className="dns-switcher">
+      <span className="finding-label">DNS servers</span>
+      <div className="row">
+        <label htmlFor="dns-iface" className="visually-hidden">
+          Network adapter
+        </label>
+        <select id="dns-iface" className="input" value={chosen} onChange={(e) => setIface(e.target.value)}>
+          {adapters.map((a) => (
+            <option key={a.name} value={a.name}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <label htmlFor="dns-servers" className="visually-hidden">
+          DNS servers
+        </label>
+        <select id="dns-servers" className="input" value={servers} onChange={(e) => setServers(e.target.value)}>
+          <option value="automatic">Automatic (router)</option>
+          <option value="cloudflare">Cloudflare 1.1.1.1</option>
+          <option value="google">Google 8.8.8.8</option>
+          <option value="quad9">Quad9 9.9.9.9</option>
+        </select>
+        <Button size="sm" disabled={!chosen} onClick={() => onPropose(chosen, servers)}>
+          Change DNS
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ActivitySafety() {
   const v = useVoice();
   const agent = useAgentStatus();
@@ -75,7 +114,14 @@ export function ActivitySafety() {
                 <Button size="sm" onClick={() => void propose('power.shutdown_restart', { mode: 'restart', delay_seconds: 60 }, 'Requested from Activity & safety')}>
                   Restart PC (60 s)
                 </Button>
+                <Button size="sm" onClick={() => void propose('windows.run_sfc_dism', {}, 'Requested from Activity & safety')}>
+                  Check system files
+                </Button>
+                <Button size="sm" onClick={() => void propose('driver.open_optional_updates', {}, 'Requested from Activity & safety')}>
+                  Find driver updates
+                </Button>
               </div>
+              <DnsSwitcher onPropose={(iface, servers) => void propose('network.change_dns', { interface: iface, servers }, 'Requested from Activity & safety')} />
               {startup.data && startup.data.entries.length > 0 && (
                 <div className="startup-list">
                   <span className="finding-label">Your startup apps</span>
